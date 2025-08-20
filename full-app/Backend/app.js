@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const dashboardRoutes = require('./Routes/Dashboard');
+const userRoutes = require('./Routes/User');
 
 const app = express();
 
@@ -27,6 +28,7 @@ mongoose
 
 // Routes
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/users', userRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

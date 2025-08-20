@@ -9,6 +9,7 @@ import ViewProfile from './pages/ViewProfile';
 import EditProfile from './pages/EditProfile';
 import UsersTable from './pages/UsersTable';
 import Dashboard from './pages/dashboard';
+import ResetPassword from './pages/ResetPassword';
 
 function App() {
   return (

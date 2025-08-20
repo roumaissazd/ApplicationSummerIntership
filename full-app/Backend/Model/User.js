@@ -33,8 +33,8 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Last name is required'],
   },
   faceIdPhoto: {
-    type: String, // URL ou chemin local de l’image du visage
-    default: '',  // Vide jusqu’à ce que l’utilisateur l’ajoute
+    type: String,
+    default: '',
   },
   isActive: {
     type: Boolean,
@@ -43,30 +43,35 @@ const userSchema = new mongoose.Schema({
   lastLogin: {
     type: Date,
   },
-  resetPasswordToken: String,
-  resetPasswordExpires: Date,
+  // === Champs pour le code OTP ===
+  resetPasswordCode: String,       // Stocke le hash du code à 6 chiffres
+  resetPasswordExpires: Date,      // Expiration du code
+
 }, {
   timestamps: true,
 });
 
-// Hash password before saving
+// Hash password avant sauvegarde
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
-// Compare password method
+// Méthode pour comparer le mot de passe
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Génère un token de reset password
-userSchema.methods.createPasswordResetToken = function () {
-  const resetToken = crypto.randomBytes(32).toString('hex');
-  this.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-  this.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
-  return resetToken;
+// Méthode pour générer un code OTP
+userSchema.methods.createPasswordResetCode = function () {
+  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 chiffres
+  const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
+
+  this.resetPasswordCode = hashedCode;
+  this.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+  return code; // Retourne le code clair pour l'envoyer par email
 };
 
 module.exports = mongoose.model('User', userSchema);

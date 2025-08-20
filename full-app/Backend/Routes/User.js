@@ -6,6 +6,7 @@ const authenticate = require('../middlewares/auth');
 const upload = require('../middlewares/uploads');
 const dashboard = require('../Model/dashboard');
 const { importCSV } = require('../Controller/UserController');
+const EmailService = require("../services/emailService");
 
 
 // Route temporaire : création du tout premier admin (NON protégée)
@@ -38,10 +39,38 @@ router.delete('/:id', authenticate, userController.deleteUser);
 
 // Route protégée : création d’admin, accessible uniquement aux admins connectés
 router.post('/admin/create', authenticate, userController.createAdminWithLimit);
+router.post("/forgot-password", userController.forgotPassword);
+
+router.post('/reset-password/:token', userController.resetPassword);
+
+router.post("/reset-password-code", userController.resetPasswordWithCode);
 
 
 router.post('/logout', userController.logoutUser); // 🔐 Auth obligatoire
 
-
+// In your UserController.js or auth.js
+exports.viewProfile = async (req, res, next) => {
+  try {
+    // Your async logic here, e.g., fetching a user from the database
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    // If any error occurs in the try block, it's caught here
+    console.error('Error in viewProfile:', error);
+    // Pass the error to the global error handler in app.js
+    next(error);
+  }
+};
+router.get("/sendmail", async (req, res) => {
+  try {
+    await EmailService.sendEmail("destinataire@gmail.com", "Test Nodemailer", "Hello, ça marche 🚀 !");
+    res.json({ success: true, message: "Email envoyé !" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 module.exports = router;

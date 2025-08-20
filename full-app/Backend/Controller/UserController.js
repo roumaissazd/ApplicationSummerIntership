@@ -1,11 +1,17 @@
+// controllers/userController.js
+
 const User = require('../Model/User');
 const authenticate = require('../middlewares/auth');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_key';
 const csv = require('csv-parser');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+const EmailService = require('../services/emailService');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'default_secret_key';
 
 // === Générer un token JWT ===
 const generateToken = (user) => {
@@ -305,18 +311,115 @@ exports.logoutUser = [
     }
   }
 ];
+
+// === Import CSV ===
 exports.importCSV = (req, res) => {
-    const results = [];
-    const filePath = './uploads/data.csv'; // Chemin de ton CSV
-    
-    fs.createReadStream(filePath)
-        .pipe(csv())
-        .on('data', (data) => results.push(data))
-        .on('end', () => {
-            console.log('CSV importé :', results);
-            res.status(200).json({ success: true, data: results });
-        })
-        .on('error', (err) => {
-            res.status(500).json({ success: false, error: err.message });
-        });
+  const results = [];
+  const filePath = './uploads/data.csv';
+  
+  fs.createReadStream(filePath)
+    .pipe(csv())
+    .on('data', (data) => results.push(data))
+    .on('end', () => {
+      console.log('CSV importé :', results);
+      res.status(200).json({ success: true, data: results });
+    })
+    .on('error', (err) => {
+      res.status(500).json({ success: false, error: err.message });
+    });
+};
+
+// === Mot de passe oublié ===
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email requis' });
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+
+    // Génère un code OTP et stocke son hash
+    const code = user.createPasswordResetCode(); 
+    await user.save();
+
+    // Contenu email
+    const emailHtml = `
+      <h2>Réinitialisation de mot de passe</h2>
+      <p>Votre code de réinitialisation est :</p>
+      <h1>${code}</h1>
+      <p>Ce code est valide pendant 15 minutes.</p>
+    `;
+
+    // Envoie l'email
+    await EmailService.sendEmail(email, 'Code de réinitialisation', emailHtml);
+
+    res.status(200).json({ message: 'Code de réinitialisation envoyé par email' });
+  } catch (error) {
+    console.error('Erreur forgotPassword:', error.message);
+    res.status(500).json({ error: 'Erreur serveur lors de l’envoi du code' });
+  }
+};
+
+// === Réinitialiser mot de passe ===
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ error: 'Mot de passe requis' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Token invalide ou expiré' });
+    }
+
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+
+    await user.save();
+
+    return res.status(200).json({ message: 'Mot de passe réinitialisé avec succès' });
+  } catch (error) {
+    console.error('Erreur resetPassword:', error.message, error.stack);
+    return res.status(500).json({ error: `Erreur serveur : ${error.message}` });
+  }
+};
+exports.resetPasswordWithCode = async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: "Email, code et nouveau mot de passe requis" });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() }).select("+password +resetPasswordCode +resetPasswordExpires");
+
+    if (!user) return res.status(404).json({ error: "Utilisateur non trouvé" });
+
+    const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
+
+    if (user.resetPasswordCode !== hashedCode || user.resetPasswordExpires < Date.now()) {
+      return res.status(400).json({ error: "Code invalide ou expiré" });
+    }
+
+    user.password = newPassword;
+    user.resetPasswordCode = undefined;
+    user.resetPasswordExpires = undefined;
+
+    await user.save();
+
+    res.status(200).json({ message: "Mot de passe réinitialisé avec succès !" });
+  } catch (error) {
+    console.error("Erreur resetPasswordWithCode:", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 };
