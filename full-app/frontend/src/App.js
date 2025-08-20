@@ -27,6 +27,7 @@ function App() {
 <Route path="/dashboard" element={<Dashboard />} />
 
 <Route path="/dashboard/:id" element={<Dashboard />} />
+<Route path="/reset-password" element={<ResetPassword />} />
 
       </Routes>
     </Router>
