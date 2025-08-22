@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../assets/vendor/css/pages/page-auth.css';
 
@@ -242,7 +242,10 @@ const Register = () => {
               required
             />
             <label className="form-check-label" htmlFor="terms">
-              I agree to <a href="#" className="text-primary">privacy policy & terms</a>
+              I agree to{' '}
+              <button type="button" className="btn btn-link p-0 text-primary align-baseline">
+                privacy policy & terms
+              </button>
             </label>
           </div>
 
@@ -251,13 +254,9 @@ const Register = () => {
 
         <p className="text-center mt-3 text-muted">
           Already have an account?{' '}
-          <button
-            type="button"
-            className="btn btn-link p-0 text-decoration-none"
-            onClick={() => navigate('/login')}
-          >
+          <Link to="/login" className="text-primary text-decoration-none">
             Se connecter
-          </button>
+          </Link>
         </p>
       </div>
     </div>

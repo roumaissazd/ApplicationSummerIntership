@@ -10,6 +10,8 @@ import EditProfile from './pages/EditProfile';
 import UsersTable from './pages/UsersTable';
 import Dashboard from './pages/dashboard';
 import ResetPassword from './pages/ResetPassword';
+import AssignmentCalendar from './pages/AssignmentCalendar';
+
 
 function App() {
   return (
@@ -28,6 +30,7 @@ function App() {
 
 <Route path="/dashboard/:id" element={<Dashboard />} />
 <Route path="/reset-password" element={<ResetPassword />} />
+<Route path="/assignment-calendar" element={<AssignmentCalendar />} />
 
       </Routes>
     </Router>

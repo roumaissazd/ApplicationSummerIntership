@@ -133,15 +133,13 @@ exports.loginUser = async (req, res) => {
     if (!user) return res.status(401).json({ error: 'Invalid email or password' });
 
     // --- Tentative login par reconnaissance faciale ---
-    if (frame && user.faceIdPhoto) {
+    if (frame) {
+      if (!user.faceIdPhoto) {
+        return res.status(400).json({ error: "Aucune photo de visage n'est enregistrée pour cet utilisateur." });
+      }
       try {
-        const sessionResponse = await axios.post('http://localhost:5000/api/start-recognition', {
-          user_id: user._id,
-        });
-
-        const { session_id } = sessionResponse.data;
-        const verifyResponse = await axios.post('http://localhost:5000/api/verify-face', {
-          session_id,
+        const verifyResponse = await axios.post('http://localhost:5000/api/verify', {
+          user_id: user._id.toString(),
           frame,
         });
 
@@ -154,23 +152,12 @@ exports.loginUser = async (req, res) => {
             user: { id: user._id, email: user.email, role: user.role },
             token,
           });
+        } else {
+          return res.status(401).json({ error: 'Échec de la reconnaissance faciale. Veuillez réessayer ou utiliser votre mot de passe.' });
         }
-        if (verifyResponse.data.fallback_required) {
-          if (!password) return res.status(400).json({ error: 'Password required as fallback' });
-          const isMatch = await user.comparePassword(password);
-          if (!isMatch) return res.status(401).json({ error: 'Invalid password' });
-          user.lastLogin = Date.now();
-          await user.save();
-          const token = generateToken(user);
-          return res.status(200).json({
-            message: 'Login fallback via password',
-            user: { id: user._id, email: user.email, role: user.role },
-            token,
-          });
-        }
-        return res.status(401).json({ error: verifyResponse.data.message });
       } catch (err) {
-        console.error('Face recognition service error:', err.message);
+        const errorMessage = err.response ? err.response.data : err.message;
+        console.error('Face recognition service error:', errorMessage);
         return res.status(500).json({ error: 'Face recognition service unavailable' });
       }
     }
@@ -421,5 +408,25 @@ exports.resetPasswordWithCode = async (req, res) => {
   } catch (error) {
     console.error("Erreur resetPasswordWithCode:", error);
     res.status(500).json({ error: "Erreur serveur" });
+  }
+};
+
+// === Récupérer un utilisateur par email (pour la reconnaissance faciale) ===
+exports.getUserByEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() }).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.status(200).json({ user });
+  } catch (err) {
+    console.error('Error fetching user by email:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 };

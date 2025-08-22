@@ -1,34 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
+  const [faceLoginLoading, setFaceLoginLoading] = useState(false);
+  const [showFaceIdModal, setShowFaceIdModal] = useState(false);
+  const videoRef = useRef(null);
+
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotMessage, setForgotMessage] = useState('');
   const [showForgotModal, setShowForgotModal] = useState(false);
 
+  // State for the reset password with code modal
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetMessage, setResetMessage] = useState('');
   const [showResetModal, setShowResetModal] = useState(false);
 
-  const location = useLocation();
-
-  // Vérifie si un resetToken est présent dans l'URL
+  // Démarrer / arrêter la caméra pour Face ID
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const resetToken = params.get('resetToken');
-    if (resetToken) setShowResetModal(true);
-  }, [location]);
+    if (showFaceIdModal) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        })
+        .catch((err) => {
+          console.error("Erreur accès caméra :", err);
+          setError("Impossible d'accéder à la caméra.");
+        });
+    } else {
+      // Stopper la caméra quand on ferme la modale
+      if (videoRef.current && videoRef.current.srcObject) {
+        let tracks = videoRef.current.srcObject.getTracks();
+        tracks.forEach(track => track.stop());
+      }
+    }
+  }, [showFaceIdModal]);
 
+  // Gestion changement inputs
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  // Connexion classique
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -49,74 +68,110 @@ const Login = () => {
     }
   };
 
-  // Mot de passe oublié
-  const handleForgotPassword = async (e) => {
-    e.preventDefault();
-    setError('');
-    setForgotMessage('');
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(forgotEmail)) {
-      setError('Veuillez saisir une adresse email valide');
+  // Authentification via Face ID
+  const handleFaceAuth = async () => {
+    if (!formData.email) {
+      setError("Veuillez d'abord entrer votre email.");
       return;
     }
+    if (!videoRef.current) return;
+    setFaceLoginLoading(true);
+    setError('');
 
+    try {
+      // Capture image de la vidéo
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const context = canvas.getContext("2d");
+      context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const frameBase64 = canvas.toDataURL("image/jpeg").split(",")[1];
+
+      // Envoyer l'image au backend Node.js pour vérification
+      const response = await fetch(
+        "http://localhost:5001/api/users/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: formData.email,
+            frame: frameBase64,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Échec de l'authentification faciale");
+        return;
+      }
+
+      // Succès : stocker le token et rediriger
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      window.location.href = "/home";
+    } catch (err) {
+      setError("Erreur reconnaissance faciale : " + err.message);
+    } finally {
+      setFaceLoginLoading(false);
+      setShowFaceIdModal(false); // Close modal on finish
+    }
+  };
+
+  // Envoi du code pour mot de passe oublié
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setForgotMessage('');
     try {
       const response = await fetch('http://localhost:5001/api/users/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail }),
       });
-
       const data = await response.json();
       if (!response.ok) {
-        setError(data.error || 'Erreur lors de la demande de réinitialisation');
+        setForgotMessage(data.error || 'Erreur lors de l\'envoi du code.');
         return;
       }
-
-      setForgotMessage('✅ Code envoyé par email ! Vérifiez votre boîte de réception.');
+      setForgotMessage('Code de réinitialisation envoyé avec succès. Veuillez vérifier vos emails.');
       setShowForgotModal(false);
       setShowResetModal(true);
-    } catch (error) {
-      setError(`⚠️ Erreur serveur : ${error.message}`);
+    } catch (err) {
+      setForgotMessage('Erreur serveur.');
     }
   };
 
-  // Réinitialisation mot de passe avec code
+  // Réinitialisation du mot de passe avec le code
   const handleResetPassword = async (e) => {
     e.preventDefault();
-    setError('');
-    setResetMessage('');
-
     if (newPassword !== confirmPassword) {
-      setError('Les mots de passe ne correspondent pas');
+      setResetMessage('Les mots de passe ne correspondent pas.');
       return;
     }
-
+    setResetMessage('');
     try {
       const response = await fetch('http://localhost:5001/api/users/reset-password-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: forgotEmail,
+          email: forgotEmail, // L'email est nécessaire pour retrouver l'utilisateur
           code: resetCode,
-          newPassword,
+          newPassword: newPassword,
         }),
       });
-
       const data = await response.json();
       if (!response.ok) {
-        setError(data.error || 'Erreur lors de la réinitialisation');
+        setResetMessage(data.error || 'Erreur lors de la réinitialisation.');
         return;
       }
-
-      setResetMessage(data.message);
-      setNewPassword('');
-      setConfirmPassword('');
-      setResetCode('');
-      setShowResetModal(false);
-    } catch (error) {
-      setError(`⚠️ Erreur serveur : ${error.message}`);
+      setResetMessage('Mot de passe réinitialisé avec succès ! Vous pouvez maintenant vous connecter.');
+      setTimeout(() => {
+        setShowResetModal(false);
+        setResetMessage('');
+      }, 3000);
+    } catch (err) {
+      setResetMessage('Erreur serveur.');
     }
   };
 
@@ -168,6 +223,15 @@ const Login = () => {
 
         <div className="text-center mt-3">
           <button
+            className="btn btn-secondary w-100 mt-2"
+            onClick={() => setShowFaceIdModal(true)}
+          >
+            Se connecter avec Face ID
+          </button>
+        </div>
+
+        <div className="text-center mt-3">
+          <button
             className="btn btn-link text-decoration-none"
             onClick={() => setShowForgotModal(true)}
           >
@@ -183,18 +247,38 @@ const Login = () => {
         </p>
       </div>
 
+      {/* Pop-up Face ID */}
+      {showFaceIdModal && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Connexion Face ID</h5>
+                <button type="button" className="btn-close" onClick={() => setShowFaceIdModal(false)}></button>
+              </div>
+              <div className="modal-body text-center">
+                <video ref={videoRef} style={{ width: '100%' }} autoPlay></video>
+                <button className="btn btn-primary w-100 mt-3" onClick={handleFaceAuth} disabled={faceLoginLoading}>
+                  {faceLoginLoading ? 'Authentification...' : 'S\'authentifier'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pop-up Mot de passe oublié */}
       {showForgotModal && (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Mot de passe oublié 🔑</h5>
+                <h5 className="modal-title">Mot de passe oublié</h5>
                 <button type="button" className="btn-close" onClick={() => setShowForgotModal(false)}></button>
               </div>
               <div className="modal-body">
-                {forgotMessage && <div className="alert alert-success">{forgotMessage}</div>}
-                <form onSubmit={handleForgotPassword} noValidate>
+                {forgotMessage && <div className={`alert ${forgotMessage.includes('succès') ? 'alert-success' : 'alert-danger'}`}>{forgotMessage}</div>}
+                <form onSubmit={handleForgotPassword}>
                   <div className="mb-3">
                     <label htmlFor="forgotEmail" className="form-label">Email</label>
                     <input
@@ -207,9 +291,7 @@ const Login = () => {
                       required
                     />
                   </div>
-                  <button type="submit" className="btn btn-warning w-100">
-                    Envoyer le code
-                  </button>
+                  <button type="submit" className="btn btn-primary w-100">Envoyer le code</button>
                 </form>
               </div>
             </div>
@@ -217,54 +299,29 @@ const Login = () => {
         </div>
       )}
 
-      {/* Pop-up Réinitialisation mot de passe avec code */}
+      {/* Pop-up Réinitialiser le mot de passe */}
       {showResetModal && (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Réinitialiser le mot de passe 🔑</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowResetModal(false)}
-                ></button>
+                <h5 className="modal-title">Réinitialiser le mot de passe</h5>
+                <button type="button" className="btn-close" onClick={() => setShowResetModal(false)}></button>
               </div>
               <div className="modal-body">
-                {resetMessage && <div className="alert alert-success">{resetMessage}</div>}
-                <form onSubmit={handleResetPassword} noValidate>
+                {resetMessage && <div className={`alert ${resetMessage.includes('succès') ? 'alert-success' : 'alert-danger'}`}>{resetMessage}</div>}
+                <form onSubmit={handleResetPassword}>
                   <div className="mb-3">
-                    <label htmlFor="resetCode" className="form-label">Code reçu par email</label>
-                    <input
-                      type="text"
-                      id="resetCode"
-                      className="form-control"
-                      value={resetCode}
-                      onChange={(e) => setResetCode(e.target.value)}
-                      required
-                    />
+                    <label htmlFor="resetCode" className="form-label">Code de réinitialisation</label>
+                    <input type="text" id="resetCode" className="form-control" value={resetCode} onChange={(e) => setResetCode(e.target.value)} placeholder="Code reçu par email" required />
                   </div>
                   <div className="mb-3">
                     <label htmlFor="newPassword" className="form-label">Nouveau mot de passe</label>
-                    <input
-                      type="password"
-                      id="newPassword"
-                      className="form-control"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                    />
+                    <input type="password" id="newPassword" className="form-control" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
                   </div>
                   <div className="mb-3">
-                    <label htmlFor="confirmPassword" className="form-label">Confirmer mot de passe</label>
-                    <input
-                      type="password"
-                      id="confirmPassword"
-                      className="form-control"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                    />
+                    <label htmlFor="confirmPassword" className="form-label">Confirmer le mot de passe</label>
+                    <input type="password" id="confirmPassword" className="form-control" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
                   </div>
                   <button type="submit" className="btn btn-primary w-100">Réinitialiser</button>
                 </form>
