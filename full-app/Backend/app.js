@@ -26,9 +26,17 @@ mongoose
     process.exit(1);
   });
 
+
+
+  
+
 // Routes
-app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+
+
+
+
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

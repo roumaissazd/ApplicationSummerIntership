@@ -11,29 +11,45 @@ const AssignmentCalendar = () => {
   const [weekStart, setWeekStart] = useState("");
   const [weekEnd, setWeekEnd] = useState("");
 
-  // Charger les assignations
   useEffect(() => {
     fetch("http://localhost:5001/api/assignments")
       .then((res) => res.json())
-      .then((data) => setAssignments(data));
+      .then((data) => setAssignments(data))
+      .catch((error) =>
+        console.error("Error fetching assignments:", error)
+      );
   }, []);
 
-  // Charger techniciens
   useEffect(() => {
     fetch("http://localhost:5001/api/users?role=technician")
-      .then((res) => res.json())
-      .then((data) => setTechnicians(data));
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      return res.json();
+    })
+      .then((data) => setTechnicians(data))
+      .catch((error) =>
+        console.error("Error fetching technicians:", error)
+      );
   }, []);
 
-  // Charger machines
   useEffect(() => {
     fetch("http://localhost:5001/api/machines")
-      .then((res) => res.json())
-      .then((data) => setMachines(data));
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      return res.json();
+    })
+      .then((data) => setMachines(data))
+      .catch((error) =>
+        console.error("Error fetching machines:", error)
+      );
   }, []);
 
   const handleAddAssignment = async () => {
-    if (!selectedTechnician || !selectedMachine || !weekStart || !weekEnd) return;
+    if (!selectedTechnician || !selectedMachine || !weekStart || !weekEnd) return
 
     const response = await fetch("http://localhost:5001/api/assignments", {
       method: "POST",
