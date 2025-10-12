@@ -1,143 +1,99 @@
-import { Grid, Paper, Typography } from '@mui/material';
-import { useRef } from 'react';
-import SystemMetricChart from './SystemMetricChart';
-import NetworkActivityChart from './NetworkActivityChart';
-import EChartsReact from 'echarts-for-react';
+import React, { useState, useEffect } from "react";
+import mqtt from "mqtt";
+import CombinedUsageCard from "../components/GpuCombinedCard";
+import RamCard from "../components/RamCard";
+import DiskCard from "../components/DiskCard";
+import CpuCard from "../components/CpuCard";
+import NetworkCard from "../components/NetworkCard";
+import BatteryCard from "../components/BatteryCard";
 
-const Dashboard = () => {
-  const cpuChartRef = useRef(null);
-  const memoryChartRef = useRef(null);
-  const diskChartRef = useRef(null);
-  const networkChartRef = useRef(null);
-  const loadChartRef = useRef(null);
-  const processChartRef = useRef(null);
+function Dashboard() {
+  const [metrics, setMetrics] = useState({
+    cpu: 0,
+    ram: 0,
+    disk: 0,
+    gpu: [], // Historique des valeurs
+    gpuMem: [], // Historique des valeurs
+    bytesSent: 0,
+    bytesReceived: 0,
+    battery: 100, // Donnée non fournie par le script Python de base
+    charging: false,
+  });
 
-  // Mock data (replace with MongoDB fetch)
-  const systemData = [
-    {
-      timestamp: '2025-09-28T10:00:00Z',
-      cpu_usage: 65,
-      memory_percent: 70,
-      disk_percent: 80,
-      network_rx: 120,
-      network_tx: 80,
-      load_avg_1min: 1.2,
-      process_count: 150,
-    },
-    {
-      timestamp: '2025-09-28T10:01:00Z',
-      cpu_usage: 70,
-      memory_percent: 72,
-      disk_percent: 81,
-      network_rx: 130,
-      network_tx: 85,
-      load_avg_1min: 1.3,
-      process_count: 152,
-    },
-  ];
+  const [labels, setLabels] = useState([]);
 
-  const timestamps = systemData.map((d) => new Date(d.timestamp).toLocaleTimeString());
+  useEffect(() => {
+    // --- Configuration MQTT ---
+    const MQTT_BROKER = "ws://broker.hivemq.com:8000/mqtt"; // Broker public via WebSockets
+    const MQTT_TOPIC = "system/metrics/rouzd-pc"; // Doit correspondre au topic du publisher
+
+    // Connexion au broker MQTT
+    const client = mqtt.connect(MQTT_BROKER);
+
+    client.on("connect", () => {
+      console.log("Connecté au broker MQTT via WebSocket !");
+      client.subscribe(MQTT_TOPIC, (err) => {
+        if (err) {
+          console.error("Erreur d'abonnement:", err);
+        }
+      });
+    });
+
+    // Réception des messages
+    client.on("message", (topic, message) => {
+      if (topic === MQTT_TOPIC) {
+        const data = JSON.parse(message.toString());
+        // Met à jour l'état avec les nouvelles données
+        setMetrics(prev => ({
+          ...prev, ...data,
+          gpu: [...prev.gpu, data.gpu].slice(-10),
+          gpuMem: [...prev.gpuMem, data.gpuMem].slice(-10)
+        }));
+        // Met à jour les labels pour le graphique historique
+        setLabels(prev => [...prev, new Date().toLocaleTimeString()].slice(-10));
+      }
+    });
+
+    // Nettoyage à la fermeture du composant
+    return () => client.end();
+  }, []);
 
   return (
-    <Grid container spacing={4}>
-      <Grid item xs={12} md={6} xl={4}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h4" color="primary.dark" mb={3}>
-            CPU Usage
-          </Typography>
-          <SystemMetricChart
-            chartRef={cpuChartRef}
-            data={{
-              timestamp: timestamps,
-              values: systemData.map((d) => d.cpu_usage),
-              metricName: 'CPU Usage (%)',
-            }}
-            style={{ height: 200 }}
+    <div className="container-fluid page-body-wrapper p-4" style={{ background: "linear-gradient(to right, #whitemimo)" }}>
+      {/* Top row: CPU, RAM, Disk */}
+      <div className="row mb-4">
+        <div className="col-md-4 mb-3">
+          <CpuCard data={metrics.cpu} />
+        </div>
+        <div className="col-md-4 mb-3">
+          <RamCard data={metrics.ram} />
+        </div>
+        <div className="col-md-4 mb-3">
+          <DiskCard data={metrics.disk} />
+        </div>
+      </div>
+
+      {/* Middle row: GPU and side cards */}
+      <div className="row">
+        <div className="col-md-8 mb-3">
+          <CombinedUsageCard gpuData={metrics.gpu} gpuMemData={metrics.gpuMem} labels={labels} />
+        </div>
+
+        <div className="col-md-4 mb-3">
+          <div className="mb-3">
+            <NetworkCard
+              bytesSent={metrics.bytesSent}
+              bytesReceived={metrics.bytesReceived}
+            />
+          </div>
+          <BatteryCard
+            battery={metrics.battery}
+            charging={metrics.charging}
           />
-        </Paper>
-      </Grid>
-      <Grid item xs={12} md={6} xl={4}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h4" color="primary.dark" mb={3}>
-            Memory Usage
-          </Typography>
-          <SystemMetricChart
-            chartRef={memoryChartRef}
-            data={{
-              timestamp: timestamps,
-              values: systemData.map((d) => d.memory_percent),
-              metricName: 'Memory Usage (%)',
-            }}
-            style={{ height: 200 }}
-          />
-        </Paper>
-      </Grid>
-      <Grid item xs={12} md={6} xl={4}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h4" color="primary.dark" mb={3}>
-            Disk Usage
-          </Typography>
-          <SystemMetricChart
-            chartRef={diskChartRef}
-            data={{
-              timestamp: timestamps,
-              values: systemData.map((d) => d.disk_percent),
-              metricName: 'Disk Usage (%)',
-            }}
-            style={{ height: 200 }}
-          />
-        </Paper>
-      </Grid>
-      <Grid item xs={12} md={6} xl={6}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h4" color="primary.dark" mb={3}>
-            Network Activity
-          </Typography>
-          <NetworkActivityChart
-            chartRef={networkChartRef}
-            data={{
-              timestamp: timestamps,
-              network_rx: systemData.map((d) => d.network_rx),
-              network_tx: systemData.map((d) => d.network_tx),
-            }}
-            style={{ height: 200 }}
-          />
-        </Paper>
-      </Grid>
-      <Grid item xs={12} md={6} xl={3}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h4" color="primary.dark" mb={3}>
-            Load Average (1 min)
-          </Typography>
-          <SystemMetricChart
-            chartRef={loadChartRef}
-            data={{
-              timestamp: timestamps,
-              values: systemData.map((d) => d.load_avg_1min),
-              metricName: 'Load Average',
-            }}
-            style={{ height: 200 }}
-          />
-        </Paper>
-      </Grid>
-      <Grid item xs={12} md={6} xl={3}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h4" color="primary.dark" mb={3}>
-            Process Count
-          </Typography>
-          <SystemMetricChart
-            chartRef={processChartRef}
-            data={{
-              timestamp: timestamps,
-              values: systemData.map((d) => d.process_count),
-              metricName: 'Process Count',
-            }}
-            style={{ height: 200 }}
-          />
-        </Paper>
-      </Grid>
-    </Grid>
+        </div>
+      </div>
+    </div>
   );
-};
+}
 
 export default Dashboard;
