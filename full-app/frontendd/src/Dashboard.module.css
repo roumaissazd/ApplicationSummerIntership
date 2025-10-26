@@ -1,0 +1,32 @@
+.chartCardLarge {
+  min-height: 400px;
+}
+
+.chartCardMedium {
+  min-height: 300px;
+}
+
+.chartCardSmall {
+  min-height: 200px;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.cardTitle {
+  margin-bottom: 1rem;
+}
+
+.chartRow {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.chartCol {
+  flex: 1;
+  min-width: 50%;
+  padding: 0 10px;
+}

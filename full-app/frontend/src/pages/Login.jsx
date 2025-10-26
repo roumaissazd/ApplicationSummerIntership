@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import { Link } from 'react-router-dom';
 
 const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
@@ -176,157 +176,309 @@ const Login = () => {
   };
 
   return (
-    <div
-      className="min-vh-100 d-flex align-items-center justify-content-center"
-      style={{
-        backgroundImage: 'url("/Uploads/Capgemini-Logo.jpg")',
-        backgroundRepeat: 'no-repeat',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
-    >
-      <div className="card shadow-lg p-4" style={{ maxWidth: '450px', width: '100%', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
-        <h4 className="text-center fw-semibold mb-4">Connexion 🔐</h4>
-        {error && <div className="alert alert-danger text-center">{error}</div>}
+    <div className="min-h-screen bg-gradient-to-br from-dark-primary via-dark-secondary to-dark-tertiary flex">
+      {/* Left Side - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-accent-blue/20 via-accent-purple/20 to-accent-pink/20"></div>
+        <div className="absolute top-20 left-20 w-72 h-72 bg-accent-blue rounded-full mix-blend-multiply filter blur-xl animate-float"></div>
+        <div className="absolute top-40 right-20 w-72 h-72 bg-accent-purple rounded-full mix-blend-multiply filter blur-xl animate-float" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute bottom-20 left-20 w-72 h-72 bg-accent-pink rounded-full mix-blend-multiply filter blur-xl animate-float" style={{ animationDelay: '4s' }}></div>
 
-        <form onSubmit={handleSubmit} noValidate>
-          <div className="mb-3">
-            <label htmlFor="email" className="form-label">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              className="form-control"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Entrez votre email"
-              required
-            />
+        <div className="relative z-10 flex flex-col justify-center items-center w-full p-12 text-center">
+          <h1 className="text-6xl font-bold text-white font-sans mb-6 animate-gradient bg-gradient-to-r from-white via-accent-blue to-accent-purple bg-clip-text text-transparent">
+            Welcome Back
+          </h1>
+          <p className="text-xl text-text-secondary font-sans mb-8 max-w-md">
+            Access your enterprise monitoring dashboard with advanced security and real-time insights
+          </p>
+          <div className="flex space-x-4">
+            <div className="w-3 h-3 bg-accent-blue rounded-full animate-pulse"></div>
+            <div className="w-3 h-3 bg-accent-purple rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+            <div className="w-3 h-3 bg-accent-pink rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
           </div>
-
-          <div className="mb-3">
-            <label htmlFor="password" className="form-label">Mot de passe</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              className="form-control"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="••••••••••••"
-              required
-            />
-          </div>
-
-          <button type="submit" className="btn btn-primary w-100">Se connecter</button>
-        </form>
-
-        <div className="text-center mt-3">
-          <button
-            className="btn btn-secondary w-100 mt-2"
-            onClick={() => setShowFaceIdModal(true)}
-          >
-            Se connecter avec Face ID
-          </button>
         </div>
-
-        <div className="text-center mt-3">
-          <button
-            className="btn btn-link text-decoration-none"
-            onClick={() => setShowForgotModal(true)}
-          >
-            Mot de passe oublié ?
-          </button>
-        </div>
-
-        <p className="text-center mt-3 text-muted">
-          Pas encore de compte ?{' '}
-          <a href="/register" className="text-primary text-decoration-none">
-            Créer un compte
-          </a>
-        </p>
       </div>
 
-      {/* Pop-up Face ID */}
+      {/* Right Side - Login Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
+        <div className="w-full max-w-md">
+          {/* Logo/Brand */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-text-primary font-sans mb-2">Sign In</h2>
+            <p className="text-text-secondary font-sans">Enter your credentials to access the system</p>
+          </div>
+
+          {/* Login Form */}
+          <div className="bg-glass backdrop-blur-md rounded-2xl border border-glass-border shadow-glass p-8">
+            {error && (
+              <div className="bg-accent-red/10 border border-accent-red/20 rounded-lg p-4 mb-6">
+                <p className="text-accent-red font-sans text-sm">{error}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-text-primary font-sans mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  className="w-full px-4 py-3 bg-dark-secondary/50 border border-glass-border rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-transparent transition-all duration-300 text-text-primary placeholder-text-secondary font-sans"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-text-primary font-sans mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  className="w-full px-4 py-3 bg-dark-secondary/50 border border-glass-border rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-transparent transition-all duration-300 text-text-primary placeholder-text-secondary font-sans"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="••••••••••••"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-gradient-to-r from-accent-blue to-accent-purple text-white font-semibold py-3 px-4 rounded-lg hover:from-accent-purple hover:to-accent-pink transition-all duration-300 font-sans hover:shadow-glow"
+              >
+                Sign In
+              </button>
+            </form>
+
+            {/* Alternative Login Options */}
+            <div className="mt-6 space-y-4">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-glass-border"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-dark-primary text-text-secondary font-sans">Or continue with</span>
+                </div>
+              </div>
+
+              <button
+                className="w-full bg-dark-secondary/50 border border-glass-border text-text-primary font-semibold py-3 px-4 rounded-lg hover:bg-dark-secondary hover:shadow-glow transition-all duration-300 font-sans flex items-center justify-center space-x-2"
+                onClick={() => setShowFaceIdModal(true)}
+              >
+                <span>📷</span>
+                <span>Face ID Login</span>
+              </button>
+            </div>
+
+            {/* Forgot Password */}
+            <div className="mt-6 text-center">
+              <button
+                className="text-accent-blue hover:text-accent-purple transition-colors duration-300 font-sans text-sm"
+                onClick={() => setShowForgotModal(true)}
+              >
+                Forgot your password?
+              </button>
+            </div>
+
+            {/* Sign Up Link */}
+            <div className="mt-6 text-center">
+              <p className="text-text-secondary font-sans text-sm">
+                Don't have an account?{' '}
+                <Link to="/register" className="text-accent-blue hover:text-accent-purple transition-colors duration-300 font-semibold">
+                  Sign up
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Face ID Modal */}
       {showFaceIdModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Connexion Face ID</h5>
-                <button type="button" className="btn-close" onClick={() => setShowFaceIdModal(false)}></button>
-              </div>
-              <div className="modal-body text-center">
-                <video ref={videoRef} style={{ width: '100%' }} autoPlay></video>
-                <button className="btn btn-primary w-100 mt-3" onClick={handleFaceAuth} disabled={faceLoginLoading}>
-                  {faceLoginLoading ? 'Authentification...' : 'S\'authentifier'}
-                </button>
-              </div>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-glass backdrop-blur-md rounded-2xl border border-glass-border shadow-glass p-8 max-w-md w-full mx-4">
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-bold text-text-primary font-sans mb-2">Face ID Authentication</h3>
+              <p className="text-text-secondary font-sans text-sm">Position your face in the camera frame</p>
             </div>
+
+            <div className="relative mb-6">
+              <video
+                ref={videoRef}
+                className="w-full h-64 bg-dark-secondary rounded-lg object-cover"
+                autoPlay
+              ></video>
+              <div className="absolute inset-0 border-2 border-accent-blue rounded-lg animate-pulse"></div>
+            </div>
+
+            <button
+              className="w-full bg-gradient-to-r from-accent-green to-accent-blue text-white font-semibold py-3 px-4 rounded-lg hover:from-accent-blue hover:to-accent-purple transition-all duration-300 font-sans disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleFaceAuth}
+              disabled={faceLoginLoading}
+            >
+              {faceLoginLoading ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Authenticating...</span>
+                </div>
+              ) : (
+                'Authenticate'
+              )}
+            </button>
+
+            <button
+              className="w-full mt-3 text-text-secondary hover:text-text-primary transition-colors duration-300 font-sans"
+              onClick={() => setShowFaceIdModal(false)}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
 
-      {/* Pop-up Mot de passe oublié */}
+      {/* Forgot Password Modal */}
       {showForgotModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Mot de passe oublié</h5>
-                <button type="button" className="btn-close" onClick={() => setShowForgotModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                {forgotMessage && <div className={`alert ${forgotMessage.includes('succès') ? 'alert-success' : 'alert-danger'}`}>{forgotMessage}</div>}
-                <form onSubmit={handleForgotPassword}>
-                  <div className="mb-3">
-                    <label htmlFor="forgotEmail" className="form-label">Email</label>
-                    <input
-                      type="email"
-                      id="forgotEmail"
-                      className="form-control"
-                      value={forgotEmail}
-                      onChange={(e) => setForgotEmail(e.target.value)}
-                      placeholder="Entrez votre email"
-                      required
-                    />
-                  </div>
-                  <button type="submit" className="btn btn-primary w-100">Envoyer le code</button>
-                </form>
-              </div>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-glass backdrop-blur-md rounded-2xl border border-glass-border shadow-glass p-8 max-w-md w-full mx-4">
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-bold text-text-primary font-sans mb-2">Reset Password</h3>
+              <p className="text-text-secondary font-sans text-sm">Enter your email to receive a reset code</p>
             </div>
+
+            {forgotMessage && (
+              <div className={`p-4 rounded-lg mb-6 ${
+                forgotMessage.includes('succès') ? 'bg-accent-green/10 border border-accent-green/20' : 'bg-accent-red/10 border border-accent-red/20'
+              }`}>
+                <p className={`font-sans text-sm ${
+                  forgotMessage.includes('succès') ? 'text-accent-green' : 'text-accent-red'
+                }`}>
+                  {forgotMessage}
+                </p>
+              </div>
+            )}
+
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div>
+                <label htmlFor="forgotEmail" className="block text-sm font-medium text-text-primary font-sans mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  id="forgotEmail"
+                  className="w-full px-4 py-3 bg-dark-secondary/50 border border-glass-border rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-transparent transition-all duration-300 text-text-primary placeholder-text-secondary font-sans"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-gradient-to-r from-accent-blue to-accent-purple text-white font-semibold py-3 px-4 rounded-lg hover:from-accent-purple hover:to-accent-pink transition-all duration-300 font-sans"
+              >
+                Send Reset Code
+              </button>
+            </form>
+
+            <button
+              className="w-full mt-3 text-text-secondary hover:text-text-primary transition-colors duration-300 font-sans"
+              onClick={() => setShowForgotModal(false)}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
 
-      {/* Pop-up Réinitialiser le mot de passe */}
+      {/* Reset Password Modal */}
       {showResetModal && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Réinitialiser le mot de passe</h5>
-                <button type="button" className="btn-close" onClick={() => setShowResetModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                {resetMessage && <div className={`alert ${resetMessage.includes('succès') ? 'alert-success' : 'alert-danger'}`}>{resetMessage}</div>}
-                <form onSubmit={handleResetPassword}>
-                  <div className="mb-3">
-                    <label htmlFor="resetCode" className="form-label">Code de réinitialisation</label>
-                    <input type="text" id="resetCode" className="form-control" value={resetCode} onChange={(e) => setResetCode(e.target.value)} placeholder="Code reçu par email" required />
-                  </div>
-                  <div className="mb-3">
-                    <label htmlFor="newPassword" className="form-label">Nouveau mot de passe</label>
-                    <input type="password" id="newPassword" className="form-control" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
-                  </div>
-                  <div className="mb-3">
-                    <label htmlFor="confirmPassword" className="form-label">Confirmer le mot de passe</label>
-                    <input type="password" id="confirmPassword" className="form-control" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
-                  </div>
-                  <button type="submit" className="btn btn-primary w-100">Réinitialiser</button>
-                </form>
-              </div>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-glass backdrop-blur-md rounded-2xl border border-glass-border shadow-glass p-8 max-w-md w-full mx-4">
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-bold text-text-primary font-sans mb-2">Reset Password</h3>
+              <p className="text-text-secondary font-sans text-sm">Enter the code and your new password</p>
             </div>
+
+            {resetMessage && (
+              <div className={`p-4 rounded-lg mb-6 ${
+                resetMessage.includes('succès') ? 'bg-accent-green/10 border border-accent-green/20' : 'bg-accent-red/10 border border-accent-red/20'
+              }`}>
+                <p className={`font-sans text-sm ${
+                  resetMessage.includes('succès') ? 'text-accent-green' : 'text-accent-red'
+                }`}>
+                  {resetMessage}
+                </p>
+              </div>
+            )}
+
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div>
+                <label htmlFor="resetCode" className="block text-sm font-medium text-text-primary font-sans mb-2">
+                  Reset Code
+                </label>
+                <input
+                  type="text"
+                  id="resetCode"
+                  className="w-full px-4 py-3 bg-dark-secondary/50 border border-glass-border rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-transparent transition-all duration-300 text-text-primary placeholder-text-secondary font-mono"
+                  value={resetCode}
+                  onChange={(e) => setResetCode(e.target.value)}
+                  placeholder="Enter reset code"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="newPassword" className="block text-sm font-medium text-text-primary font-sans mb-2">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  id="newPassword"
+                  className="w-full px-4 py-3 bg-dark-secondary/50 border border-glass-border rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-transparent transition-all duration-300 text-text-primary placeholder-text-secondary font-sans"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-text-primary font-sans mb-2">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  className="w-full px-4 py-3 bg-dark-secondary/50 border border-glass-border rounded-lg focus:ring-2 focus:ring-accent-blue focus:border-transparent transition-all duration-300 text-text-primary placeholder-text-secondary font-sans"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-gradient-to-r from-accent-green to-accent-blue text-white font-semibold py-3 px-4 rounded-lg hover:from-accent-blue hover:to-accent-purple transition-all duration-300 font-sans"
+              >
+                Reset Password
+              </button>
+            </form>
+
+            <button
+              className="w-full mt-3 text-text-secondary hover:text-text-primary transition-colors duration-300 font-sans"
+              onClick={() => setShowResetModal(false)}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}

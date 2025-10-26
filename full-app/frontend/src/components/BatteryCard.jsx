@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from "react";
 
-function BatteryCard({ style, title }) {
-  const [batteryLevel, setBatteryLevel] = useState(100);
-  const [charging, setCharging] = useState(false);
+function BatteryCard({ battery, charging, style, title }) {
+  const [batteryLevel, setBatteryLevel] = useState(battery || 100);
+  const [isCharging, setIsCharging] = useState(charging || false);
 
   useEffect(() => {
-    if ("getBattery" in navigator) {
+    if ("getBattery" in navigator && !battery) {
       navigator.getBattery().then((battery) => {
         const updateBatteryInfo = () => {
           const level = battery.level * 100;
           setBatteryLevel(level);
-          setCharging(battery.charging);
+          setIsCharging(battery.charging);
         };
 
         updateBatteryInfo();
@@ -23,39 +23,61 @@ function BatteryCard({ style, title }) {
           battery.removeEventListener("chargingchange", updateBatteryInfo);
         };
       });
+    } else {
+      setBatteryLevel(battery);
+      setIsCharging(charging);
     }
-  }, []);
+  }, [battery, charging]);
 
-  // Déterminer la couleur
-  const batteryColor =
-    batteryLevel < 20 ? "red" : batteryLevel < 50 ? "orange" : "green";
+  // Déterminer la couleur avec gradient
+  const getBatteryGradient = () => {
+    if (batteryLevel < 20) return "linear-gradient(180deg, #ef4444, #dc2626)";
+    if (batteryLevel < 50) return "linear-gradient(180deg, #f59e0b, #d97706)";
+    return "linear-gradient(180deg, #10b981, #059669)";
+  };
+
+  const isLowBattery = batteryLevel < 20;
 
   return (
     <div
-      className="rounded-2xl shadow-lg p-5 flex flex-col items-center justify-center"
+      className={`rounded-2xl shadow-glass p-6 flex flex-col items-center justify-center backdrop-blur-md border border-glass-border transition-all duration-300 hover:shadow-glow hover:scale-105 ${
+        isLowBattery ? 'animate-pulse-slow' : ''
+      }`}
       style={{
         ...style,
-        backdropFilter: "blur(8px)",
-        background: style?.background || "rgba(50,50,50,0.7)",
+        background: style?.background || "rgba(255, 255, 255, 0.05)",
       }}
     >
-      <h3 className="text-lg font-semibold mb-3 text-white">{title || "Battery Status"}</h3>
+      <h3 className="text-lg font-semibold mb-4 text-text-primary font-sans">{title || "Battery Status"}</h3>
 
-      <div className="battery-container relative w-16 h-40 border-2 border-white rounded-lg flex flex-col justify-end">
+      <div className="battery-container relative w-20 h-48 border-2 border-glass-border rounded-lg flex flex-col justify-end overflow-hidden">
         <div
-          className="absolute bottom-0 w-full rounded-b-md transition-all duration-500"
+          className="absolute bottom-0 w-full rounded-b-md transition-all duration-1000 ease-out"
           style={{
             height: `${batteryLevel}%`,
-            backgroundColor: batteryColor,
+            background: getBatteryGradient(),
+            boxShadow: isCharging ? '0 0 20px rgba(16, 185, 129, 0.6)' : 'none',
           }}
         ></div>
-        <div className="battery-cap absolute top-[-10px] w-3 h-2 bg-white rounded-sm"></div>
-        <span className="absolute w-full text-center text-white font-bold top-1/2 transform -translate-y-1/2">
+        <div className="battery-cap absolute top-[-12px] left-1/2 transform -translate-x-1/2 w-4 h-3 bg-glass-border rounded-sm"></div>
+        <span className="absolute w-full text-center text-text-primary font-bold font-mono top-1/2 transform -translate-y-1/2 text-lg">
           {Math.round(batteryLevel)}%
         </span>
       </div>
 
-      {charging && <p className="text-green-400 mt-2 font-medium">⚡ Charging</p>}
+      {isCharging && (
+        <div className="mt-4 flex items-center space-x-2">
+          <div className="w-2 h-2 bg-accent-green rounded-full animate-pulse"></div>
+          <p className="text-accent-green font-medium font-sans">⚡ Charging</p>
+        </div>
+      )}
+
+      {isLowBattery && !isCharging && (
+        <div className="mt-4 flex items-center space-x-2">
+          <div className="w-2 h-2 bg-accent-red rounded-full animate-pulse"></div>
+          <p className="text-accent-red font-medium font-sans">Low Battery</p>
+        </div>
+      )}
     </div>
   );
 }

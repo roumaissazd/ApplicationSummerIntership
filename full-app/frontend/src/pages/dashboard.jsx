@@ -21,6 +21,7 @@ function Dashboard() {
   });
 
   const [labels, setLabels] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // --- Configuration MQTT ---
@@ -32,6 +33,7 @@ function Dashboard() {
 
     client.on("connect", () => {
       console.log("Connecté au broker MQTT via WebSocket !");
+      setIsLoading(false);
       client.subscribe(MQTT_TOPIC, (err) => {
         if (err) {
           console.error("Erreur d'abonnement:", err);
@@ -58,38 +60,100 @@ function Dashboard() {
     return () => client.end();
   }, []);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-dark-primary via-dark-secondary to-dark-tertiary flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-accent-blue border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-text-primary font-sans">Connecting to monitoring system...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container-fluid page-body-wrapper p-4" style={{ background: "linear-gradient(to right, #whitemimo)" }}>
-      {/* Top row: CPU, RAM, Disk */}
-      <div className="row mb-4">
-        <div className="col-md-4 mb-3">
-          <CpuCard data={metrics.cpu} />
+    <div className="min-h-screen bg-gradient-to-br from-dark-primary via-dark-secondary to-dark-tertiary p-6">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-text-primary font-sans mb-2">System Dashboard</h1>
+        <p className="text-text-secondary font-sans">Real-time monitoring of your machine performance</p>
+      </div>
+
+      {/* System Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="bg-glass backdrop-blur-md rounded-2xl border border-glass-border shadow-glass p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-text-secondary font-sans text-sm">System Status</p>
+              <p className="text-accent-green font-semibold font-sans">Online</p>
+            </div>
+            <div className="w-3 h-3 bg-accent-green rounded-full animate-pulse"></div>
+          </div>
         </div>
-        <div className="col-md-4 mb-3">
-          <RamCard data={metrics.ram} />
+        <div className="bg-glass backdrop-blur-md rounded-2xl border border-glass-border shadow-glass p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-text-secondary font-sans text-sm">Uptime</p>
+              <p className="text-text-primary font-semibold font-mono">2h 34m</p>
+            </div>
+            <div className="text-accent-blue">⏱️</div>
+          </div>
         </div>
-        <div className="col-md-4 mb-3">
-          <DiskCard data={metrics.disk} />
+        <div className="bg-glass backdrop-blur-md rounded-2xl border border-glass-border shadow-glass p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-text-secondary font-sans text-sm">Alerts</p>
+              <p className="text-accent-yellow font-semibold font-sans">2 Active</p>
+            </div>
+            <div className="text-accent-yellow">⚠️</div>
+          </div>
         </div>
       </div>
 
-      {/* Middle row: GPU and side cards */}
-      <div className="row">
-        <div className="col-md-8 mb-3">
+      {/* Main Grid Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column - System Metrics */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* CPU, RAM, Disk Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <CpuCard data={metrics.cpu} />
+            <RamCard data={metrics.ram} />
+            <DiskCard data={metrics.disk} />
+          </div>
+
+          {/* GPU Chart */}
           <CombinedUsageCard gpuData={metrics.gpu} gpuMemData={metrics.gpuMem} labels={labels} />
         </div>
 
-        <div className="col-md-4 mb-3">
-          <div className="mb-3">
-            <NetworkCard
-              bytesSent={metrics.bytesSent}
-              bytesReceived={metrics.bytesReceived}
-            />
-          </div>
+        {/* Right Column - Network and Battery */}
+        <div className="lg:col-span-4 space-y-6">
+          <NetworkCard
+            bytesSent={metrics.bytesSent}
+            bytesReceived={metrics.bytesReceived}
+          />
           <BatteryCard
             battery={metrics.battery}
             charging={metrics.charging}
           />
+
+          {/* Additional Info Card */}
+          <div className="bg-glass backdrop-blur-md rounded-2xl border border-glass-border shadow-glass p-6">
+            <h3 className="text-lg font-semibold text-text-primary font-sans mb-4">System Info</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-text-secondary font-sans text-sm">OS</span>
+                <span className="text-text-primary font-mono text-sm">Windows 11</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-secondary font-sans text-sm">Host</span>
+                <span className="text-text-primary font-mono text-sm">rouzd-pc</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-text-secondary font-sans text-sm">Last Update</span>
+                <span className="text-text-primary font-mono text-sm">{new Date().toLocaleTimeString()}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
