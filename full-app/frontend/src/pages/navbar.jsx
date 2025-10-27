@@ -41,6 +41,7 @@ const Navbar = () => {
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/users', label: 'Users', icon: '👥' },
     { path: '/assignment-calendar', label: 'Calendar', icon: '📅' },
+    { path: '/chat', label: 'Messages', icon: '💬' },
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -93,7 +94,6 @@ const Navbar = () => {
                         {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
                       </span>
                     </div>
-                    <span className="font-sans text-sm">{user.name || user.email}</span>
                     <svg className="w-4 h-4 transition-transform duration-300" style={{ transform: isProfileMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -178,7 +178,6 @@ const Navbar = () => {
                       {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
                     </span>
                   </div>
-                  <span className="text-text-primary font-sans">{user.name || user.email}</span>
                 </div>
                 <Link
                   to="/profile"

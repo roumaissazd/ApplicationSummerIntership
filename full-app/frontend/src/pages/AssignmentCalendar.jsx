@@ -1,105 +1,190 @@
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 
+const API_URL = "http://localhost:5001/api";
+
 const AssignmentCalendar = () => {
   const [assignments, setAssignments] = useState([]);
-  const [technicians, setTechnicians] = useState([]);
+  const [users, setUsers] = useState([]);
   const [machines, setMachines] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [selectedTechnician, setSelectedTechnician] = useState("");
+  const [selectedUser, setSelectedUser] = useState("");
   const [selectedMachine, setSelectedMachine] = useState("");
-  const [weekStart, setWeekStart] = useState("");
-  const [weekEnd, setWeekEnd] = useState("");
+  const [description, setDescription] = useState("");
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetch("http://localhost:5001/api/assignments")
-      .then((res) => res.json())
-      .then((data) => setAssignments(data))
-      .catch((error) =>
-        console.error("Error fetching assignments:", error)
-      );
-  }, []);
+  const token = localStorage.getItem('token');
 
-  useEffect(() => {
-    fetch("http://localhost:5001/api/users?role=technician")
-    .then(res => {
+  const fetchData = async (endpoint, setter) => {
+    try {
+      const res = await fetch(`${API_URL}/${endpoint}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      return res.json();
-    })
-      .then((data) => setTechnicians(data))
-      .catch((error) =>
-        console.error("Error fetching technicians:", error)
-      );
-  }, []);
-
-  useEffect(() => {
-    fetch("http://localhost:5001/api/machines")
-    .then(res => {
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
+      // Ajuster en fonction de la structure attendue de l'API
+      if (endpoint === "users" && data.users) {
+        setter(data.users);
+      } else if (endpoint === "machines" && data.machines) {
+        setter(data.machines);
+      } else {
+        setter(data); // Pour les endpoints qui renvoient un tableau directement (ex: assignments)
       }
-      return res.json();
-    })
-      .then((data) => setMachines(data))
-      .catch((error) =>
-        console.error("Error fetching machines:", error)
-      );
-  }, []);
-
-  const handleAddAssignment = async () => {
-    if (!selectedTechnician || !selectedMachine || !weekStart || !weekEnd) return
-
-    const response = await fetch("http://localhost:5001/api/assignments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        technicianId: selectedTechnician,
-        machineId: selectedMachine,
-        weekStart,
-        weekEnd,
-      }),
-    });
-
-    const data = await response.json();
-    if (response.ok) {
-      setAssignments((prev) => [...prev, data]);
-      setShowModal(false);
-      setSelectedTechnician("");
-      setSelectedMachine("");
-      setWeekStart("");
-      setWeekEnd("");
-    } else {
-      alert(data.error || "Erreur lors de l'ajout");
+    } catch (error) {
+      console.error(`Error fetching ${endpoint}:`, error);
+      setError(`Erreur lors de la récupération des ${endpoint}: ${error.message}`);
     }
   };
 
+  useEffect(() => {
+    const fetchAllData = async () => {
+      if (token) {
+        setLoading(true);
+        await Promise.all([
+          fetchData("assignments", setAssignments),
+          fetchData("users", setUsers),
+          fetchData("machines", setMachines)  // Cette route va maintenant filtrer par créateur
+        ]);
+        setLoading(false);
+      }
+    };
+
+    fetchAllData();
+  }, [token]);
+
+  const handleDayClick = (day) => {
+    setSelectedDate(day);
+    setShowModal(true);
+  };
+
+  const resetModal = () => {
+    setShowModal(false);
+    setSelectedUser("");
+    setSelectedMachine("");
+    setDescription("");
+    setSelectedDate(null);
+  };
+
+  const handleAddAssignment = async () => {
+    if (!selectedUser || !selectedMachine || !selectedDate || !description) {
+      alert("Veuillez remplir tous les champs.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/assignments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          technicianId: selectedUser,
+          machineId: selectedMachine,
+          day: selectedDate.toISOString().split('T')[0], // Format YYYY-MM-DD
+          description,
+        }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setAssignments((prev) => [...prev, data]);
+        resetModal();
+      } else {
+        alert(data.error || "Erreur lors de l'ajout");
+      }
+    } catch (error) {
+      console.error("Error adding assignment:", error);
+      alert("Erreur lors de l'ajout de l'assignation");
+    }
+  };
+
+  const renderCalendar = () => {
+    const month = currentDate.getMonth();
+    const year = currentDate.getFullYear();
+    const firstDayOfMonth = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const days = [];
+    for (let i = 0; i < firstDayOfMonth; i++) {
+      days.push(<div key={`empty-${i}`} className="border p-2" style={{ minHeight: '120px' }}></div>);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const dayAssignments = assignments.filter(a => {
+        const assignmentDate = new Date(a.weekStart);
+        return assignmentDate.getFullYear() === year &&
+               assignmentDate.getMonth() === month &&
+               assignmentDate.getDate() === day;
+      });
+
+      days.push(
+        <div key={day} className="border p-2" style={{ minHeight: '120px', cursor: 'pointer' }} onClick={() => handleDayClick(date)}>
+          <strong style={{ color: 'white' }}>{day}</strong>
+          <div className="mt-1">
+            {dayAssignments.map(a => (
+              <div key={a._id} className="bg-primary text-white rounded p-1 mb-1 small">
+                {a.machine.name} - {a.notes} - {a.technician.firstName}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    return days;
+  };
+
+  const changeMonth = (offset) => {
+    setCurrentDate(prevDate => {
+      const newDate = new Date(prevDate);
+      newDate.setMonth(newDate.getMonth() + offset);
+      return newDate;
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="container mt-4 text-center">
+        <div className="spinner-border" role="status">
+          <span className="visually-hidden">Chargement...</span>
+        </div>
+        <p className="mt-2">Chargement des données...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-danger" role="alert">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mt-4">
-      <h3>Assignations des techniciens</h3>
-      <button className="btn btn-primary mb-3" onClick={() => setShowModal(true)}>
-        Ajouter une assignation
-      </button>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <button className="btn btn-outline-primary" onClick={() => changeMonth(-1)}>Précédent</button>
+        <h3>{currentDate.toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}</h3>
+        <button className="btn btn-outline-primary" onClick={() => changeMonth(1)}>Suivant</button>
+      </div>
 
-      {technicians.map((tech) => (
-        <div key={tech._id} className="card mb-2">
-          <div className="card-header bg-info text-white">
-            {tech.firstName} {tech.lastName}
-          </div>
-          <ul className="list-group list-group-flush">
-            {assignments
-              .filter((a) => a.technician._id === tech._id)
-              .map((a) => (
-                <li key={a._id} className="list-group-item d-flex justify-content-between">
-                  {a.machine.name} ({new Date(a.weekStart).toLocaleDateString()} -{" "}
-                  {new Date(a.weekEnd).toLocaleDateString()})
-                  <span className="badge bg-secondary">{a.status}</span>
-                </li>
-              ))}
-          </ul>
-        </div>
-      ))}
+      <div className="d-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
+        {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
+          <div key={day} className="text-center fw-bold p-2 border bg-light">{day}</div>
+        ))}
+        {renderCalendar()}
+      </div>
 
       {/* Modal ajout */}
       {showModal && (
@@ -107,25 +192,12 @@ const AssignmentCalendar = () => {
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Nouvelle assignation</h5>
-                <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
+                <h5 className="modal-title">
+                  Nouvelle assignation pour le {selectedDate?.toLocaleDateString('fr-FR')}
+                </h5>
+                <button type="button" className="btn-close" onClick={resetModal}></button>
               </div>
               <div className="modal-body">
-                <div className="mb-3">
-                  <label>Technicien</label>
-                  <select
-                    className="form-select"
-                    value={selectedTechnician}
-                    onChange={(e) => setSelectedTechnician(e.target.value)}
-                  >
-                    <option value="">Sélectionner</option>
-                    {technicians.map((t) => (
-                      <option key={t._id} value={t._id}>
-                        {t.firstName} {t.lastName}
-                      </option>
-                    ))}
-                  </select>
-                </div>
                 <div className="mb-3">
                   <label>Machine</label>
                   <select
@@ -133,35 +205,52 @@ const AssignmentCalendar = () => {
                     value={selectedMachine}
                     onChange={(e) => setSelectedMachine(e.target.value)}
                   >
-                    <option value="">Sélectionner</option>
-                    {machines.map((m) => (
-                      <option key={m._id} value={m._id}>
-                        {m.name}
+                    <option value="">Sélectionner une machine</option>
+                    {machines.length === 0 ? (
+                      <option disabled>Aucune machine disponible</option>
+                    ) : (
+                      machines.map((m) => (
+                        <option key={m._id} value={m._id}>
+                          {m.name} ({m.serialNumber})
+                        </option>
+                      ))
+                    )}
+                  </select>
+                  {machines.length === 0 && (
+                    <div className="form-text text-muted">
+                      Vous n'avez créé aucune machine. 
+                      <a href="/machines/create" className="ms-1">Créer une machine</a>
+                    </div>
+                  )}
+                </div>
+                <div className="mb-3">
+                  <label>Description de la panne</label>
+                  <textarea
+                    className="form-control"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Décrivez la panne ou la tâche de maintenance"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label>Utilisateur responsable</label>
+                  <select
+                    className="form-select"
+                    value={selectedUser}
+                    onChange={(e) => setSelectedUser(e.target.value)}
+                  >
+                    <option value="">Sélectionner un utilisateur</option>
+                    {users.map((t) => (
+                      <option key={t._id} value={t._id}>
+                        {t.firstName} {t.lastName}
                       </option>
                     ))}
                   </select>
                 </div>
-                <div className="mb-3">
-                  <label>Date début semaine</label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={weekStart}
-                    onChange={(e) => setWeekStart(e.target.value)}
-                  />
-                </div>
-                <div className="mb-3">
-                  <label>Date fin semaine</label>
-                  <input
-                    type="date"
-                    className="form-control"
-                    value={weekEnd}
-                    onChange={(e) => setWeekEnd(e.target.value)}
-                  />
-                </div>
-                <button className="btn btn-success w-100" onClick={handleAddAssignment}>
-                  Ajouter
-                </button>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={resetModal}>Annuler</button>
+                <button type="button" className="btn btn-primary" onClick={handleAddAssignment}>Confirmer l'assignation</button>
               </div>
             </div>
           </div>

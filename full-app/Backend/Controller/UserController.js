@@ -430,3 +430,30 @@ exports.getUserByEmail = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
+exports.searchUsers = async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q || q.trim() === '') {
+      return res.status(400).json({ error: 'Le paramètre de recherche est requis' });
+    }
+    
+    // Créer une expression régulière pour la recherche insensible à la casse
+    const searchRegex = new RegExp(q.trim(), 'i');
+    
+    // Rechercher des utilisateurs par nom, prénom ou email
+    const users = await User.find({
+      $or: [
+        { firstName: searchRegex },
+        { lastName: searchRegex },
+        { email: searchRegex }
+      ]
+    }).select('-password').limit(10); // Limiter à 10 résultats pour la performance
+    
+    res.json({ users });
+  } catch (error) {
+    console.error('Erreur lors de la recherche d\'utilisateurs:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+};

@@ -11,6 +11,7 @@ import UsersTable from './pages/UsersTable';
 import Dashboard from './pages/dashboard';
 import ResetPassword from './pages/ResetPassword';
 import AssignmentCalendar from './pages/AssignmentCalendar';
+import ChatPage from './pages/ChatPage';
 
 function App() {
   const [theme, setTheme] = useState('dark');
@@ -63,6 +64,10 @@ function App() {
             <Route path="/dashboard/:id" element={<Dashboard />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/assignment-calendar" element={<AssignmentCalendar />} />
+            <Route path="/dashboard/:machineId" element={<Dashboard />} />
+               <Route path="/chat" element={<ChatPage />} />
+        <Route path="/chat/:conversationId" element={<ChatPage />} />
+
           </Routes>
         </div>
       </div>

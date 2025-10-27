@@ -73,5 +73,30 @@ router.get("/sendmail", async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+// Route pour rechercher des utilisateurs
+router.get('/search', authenticate, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim() === '') {
+      return res.status(400).json({ error: 'Query parameter is required' });
+    }
+
+    const users = await User.find({
+      $or: [
+        { firstName: { $regex: q, $options: 'i' } },
+        { lastName: { $regex: q, $options: 'i' } },
+        { email: { $regex: q, $options: 'i' } }
+      ]
+    }).select('-password').limit(10);
+
+    res.status(200).json({ users });
+  } catch (err) {
+    console.error('Error searching users:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+// Route pour rechercher des utilisateurs
+router.get('/search', authenticate, userController.searchUsers);
+
 
 module.exports = router;

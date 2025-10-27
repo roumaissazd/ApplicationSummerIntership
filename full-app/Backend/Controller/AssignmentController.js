@@ -1,11 +1,11 @@
-const Assignment = require('../models/Assignment');
-const User = require('../models/User');
-const Machine = require('../models/Machine');
+const Assignment = require('../Model/Assignment');
+const User = require('../Model/User');
+const Machine = require('../Model/Machine');
 
 // Créer une assignation
 exports.createAssignment = async (req, res) => {
   try {
-    const { technicianId, machineId, weekStart, weekEnd, notes } = req.body;
+    const { technicianId, machineId, day, description } = req.body;
 
     // Vérifier que le technicien et la machine existent
     const technician = await User.findById(technicianId);
@@ -14,15 +14,21 @@ exports.createAssignment = async (req, res) => {
     const machine = await Machine.findById(machineId);
     if (!machine) return res.status(404).json({ error: 'Machine non trouvée' });
 
+    if (!day) {
+      return res.status(400).json({ error: 'La date d\'assignation est requise' });
+    }
+
     const assignment = await Assignment.create({
       technician: technicianId,
       machine: machineId,
-      weekStart,
-      weekEnd,
-      notes
+      weekStart: new Date(day),
+      weekEnd: new Date(day),
+      notes: description
     });
 
-    res.status(201).json(assignment);
+    const populatedAssignment = await Assignment.findById(assignment._id)
+      .populate('technician', 'firstName lastName email role').populate('machine', 'name serialNumber');
+    res.status(201).json(populatedAssignment);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

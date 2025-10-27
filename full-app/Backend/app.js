@@ -3,8 +3,13 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
+const socketIo = require('socket.io');
 const dashboardRoutes = require('./Routes/Dashboard');
 const userRoutes = require('./Routes/User');
+const machineRoutes = require('./Routes/machine');
+const assignmentRoutes = require('./Routes/assignment');
+const chatRoutes = require('./Routes/chat');
+const chatSocket = require('./socket/chatSocket');
 
 const app = express();
 
@@ -26,15 +31,37 @@ mongoose
     process.exit(1);
   });
 
+// Socket.IO setup
+const http = require('http');
+const { Server } = require('socket.io');
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST"]
+  }
+});
 
-
+io.on('connection', (socket) => {
+  console.log('Utilisateur connecté:', socket.id);
   
+  // Rejoindre une salle de conversation
+});
+
+// Initialiser les gestionnaires d'événements Socket.IO pour le chat
+chatSocket(io);
+
+  // Ajoutez cette route de test
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Le serveur fonctionne correctement!' });
+});
 
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-
-
+app.use('/api/machines', machineRoutes);
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/chat', chatRoutes);
 
 
 
@@ -46,6 +73,6 @@ app.use((err, req, res, next) => {
 
 // Start Server
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
