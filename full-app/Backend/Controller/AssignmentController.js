@@ -3,11 +3,11 @@ const User = require('../Model/User');
 const Machine = require('../Model/Machine');
 
 // Créer une assignation
+// Créer une assignation
 exports.createAssignment = async (req, res) => {
   try {
     const { technicianId, machineId, day, description } = req.body;
-
-    // Vérifier que le technicien et la machine existent
+    console.log("Creating assignment with:", { technicianId, machineId, day, description }); // Débogage
     const technician = await User.findById(technicianId);
     if (!technician) return res.status(404).json({ error: 'Technicien non trouvé' });
 
@@ -27,9 +27,12 @@ exports.createAssignment = async (req, res) => {
     });
 
     const populatedAssignment = await Assignment.findById(assignment._id)
-      .populate('technician', 'firstName lastName email role').populate('machine', 'name serialNumber');
+      .populate('technician', 'firstName lastName email role')
+      .populate('machine', 'name serialNumber');
+    console.log("New Assignment Created:", populatedAssignment); // Débogage
     res.status(201).json(populatedAssignment);
   } catch (err) {
+    console.error("Error in createAssignment:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -40,12 +43,13 @@ exports.getAllAssignments = async (req, res) => {
     const assignments = await Assignment.find()
       .populate('technician', 'firstName lastName email role')
       .populate('machine', 'name serialNumber');
+    console.log("Assignments sent:", assignments); // Débogage
     res.json(assignments);
   } catch (err) {
+    console.error("Error in getAllAssignments:", err);
     res.status(500).json({ error: err.message });
   }
 };
-
 // Lister les assignations par semaine
 exports.getAssignmentsByWeek = async (req, res) => {
   try {
