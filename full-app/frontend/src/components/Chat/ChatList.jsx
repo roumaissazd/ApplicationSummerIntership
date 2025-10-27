@@ -229,8 +229,9 @@ const ChatList = ({ onConversationSelect, activeConversation }) => {
                   <div className="flex items-start">
                     <div className="flex-shrink-0 mr-3">
                       <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold shadow-sm">
-                        {conversation.participants && conversation.participants[0] ? 
-                          `${conversation.participants[0].firstName.charAt(0)}${conversation.participants[0].lastName.charAt(0)}` : 
+                        {conversation.participants && conversation.participants[0] ?
+                          `${(conversation.participants[0].firstName || ' ').charAt(0)}${(conversation.participants[0].lastName || ' ').charAt(0)}`.trim() || 'U'
+                          :
                           'U'
                         }
                       </div>

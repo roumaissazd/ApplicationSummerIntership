@@ -188,7 +188,7 @@ function UsersTable() {
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-gradient-to-br from-accent-blue to-accent-purple rounded-full flex items-center justify-center">
                           <span className="text-white font-semibold text-sm">
-                            {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                            {(user.firstName || ' ').charAt(0)}{(user.lastName || ' ').charAt(0)}
                           </span>
                         </div>
                         <div>
