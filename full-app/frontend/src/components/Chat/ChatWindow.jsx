@@ -6,8 +6,9 @@ import { fr } from 'date-fns/locale';
 import Message from './Message';
 import MessageInput from './MessageInput';
 import io from 'socket.io-client';
+import { Plus, Search, Check, CheckCheck, ArrowLeft, Phone, Video, Info, MoreVertical, MessageSquare } from 'lucide-react';
 
-const ChatWindow = () => {
+const ChatWindow = ({ onBackToList }) => {
   const { conversationId } = useParams();
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -15,12 +16,13 @@ const ChatWindow = () => {
   const [error, setError] = useState(null);
   const [typingUsers, setTypingUsers] = useState([]);
   const [socket, setSocket] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('disconnected'); // 'connected', 'disconnected', 'connecting'
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [showInfo, setShowInfo] = useState(false);
   const messagesEndRef = useRef(null);
 
   const token = localStorage.getItem('token');
   const API_URL = "http://localhost:5001";
-  const SOCKET_URL = "http://localhost:5001"; // Correction du port
+  const SOCKET_URL = "http://localhost:5001";
 
   useEffect(() => {
     if (!conversationId) return;
@@ -30,7 +32,7 @@ const ChatWindow = () => {
       auth: {
         token: token
       },
-      transports: ['websocket', 'polling'] // Ajouter les transports pour la compatibilité
+      transports: ['websocket', 'polling']
     });
 
     newSocket.on('connect', () => {
@@ -105,7 +107,6 @@ const ChatWindow = () => {
   }, [conversationId, token]);
 
   useEffect(() => {
-    // Faire défiler vers le bas lorsque de nouveaux messages arrivent
     scrollToBottom();
   }, [messages]);
 
@@ -118,7 +119,7 @@ const ChatWindow = () => {
       socket.emit('sendMessage', {
         conversationId,
         content,
-        senderId: JSON.parse(atob(token.split('.')[1])).id // Extraire l'ID du token
+        senderId: JSON.parse(atob(token.split('.')[1])).id
       });
     } else {
       setError('Impossible d\'envoyer le message. Vérifiez votre connexion.');
@@ -135,33 +136,14 @@ const ChatWindow = () => {
     }
   };
 
-  const markMessagesAsRead = async () => {
-    try {
-      await fetch(`${API_URL}/api/chat/messages/read`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ conversationId })
-      });
-    } catch (err) {
-      console.error('Erreur lors du marquage des messages comme lus:', err);
-    }
-  };
-
-  useEffect(() => {
-    if (conversationId) {
-      markMessagesAsRead();
-    }
-  }, [conversationId]);
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p>Chargement de la conversation...</p>
+          <div className="inline-flex items-center justify-center w-12 h-12 mb-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          </div>
+          <p className="text-gray-500">Chargement de la conversation...</p>
         </div>
       </div>
     );
@@ -198,9 +180,9 @@ const ChatWindow = () => {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <MessageSquare className="h-8 w-8 text-gray-400" />
+          </div>
           <p className="text-gray-500">Conversation non trouvée</p>
         </div>
       </div>
@@ -213,8 +195,16 @@ const ChatWindow = () => {
       <div className="p-4 border-b border-gray-200 bg-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
+            {onBackToList && (
+              <button
+                onClick={onBackToList}
+                className="mr-3 p-1 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <ArrowLeft className="h-5 w-5 text-gray-600" />
+              </button>
+            )}
             <div className="flex-shrink-0 mr-3">
-              <div className="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+              <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
                 {conversation.participants[0].firstName.charAt(0)}
                 {conversation.participants[0].lastName.charAt(0)}
               </div>
@@ -239,14 +229,23 @@ const ChatWindow = () => {
               </div>
             </div>
           </div>
-          <button
-            onClick={() => window.history.back()}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center space-x-1">
+            <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <Phone className="h-5 w-5 text-gray-600" />
+            </button>
+            <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <Video className="h-5 w-5 text-gray-600" />
+            </button>
+            <button 
+              onClick={() => setShowInfo(!showInfo)}
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            >
+              <Info className="h-5 w-5 text-gray-600" />
+            </button>
+            <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+              <MoreVertical className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -255,9 +254,9 @@ const ChatWindow = () => {
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageSquare className="h-8 w-8 text-gray-400" />
+              </div>
               <p>Aucun message. Soyez le premier à écrire !</p>
             </div>
           </div>
