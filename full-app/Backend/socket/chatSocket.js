@@ -1,3 +1,4 @@
+// socket/chatSocket.js
 const Message = require('../Model/Message');
 const Conversation = require('../Model/Conversation');
 
@@ -76,6 +77,42 @@ module.exports = (io) => {
         conversationId: data.conversationId,
         isTyping: data.isTyping
       });
+    });
+    
+    // Mettre à jour un message
+    socket.on('updateMessage', async (data) => {
+      try {
+        const { messageId, conversationId, content, userId } = data;
+        
+        // Mettre à jour le message dans la base de données
+        const updatedMessage = await Message.findByIdAndUpdate(
+          messageId,
+          { content },
+          { new: true }
+        ).populate('sender', 'firstName lastName');
+        
+        // Notifier tous les participants de la conversation
+        io.to(conversationId).emit('messageUpdated', updatedMessage);
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour du message:', error);
+        socket.emit('messageError', { error: error.message });
+      }
+    });
+    
+    // Supprimer un message
+    socket.on('deleteMessage', async (data) => {
+      try {
+        const { messageId, conversationId, userId } = data;
+        
+        // Supprimer le message de la base de données
+        await Message.findByIdAndDelete(messageId);
+        
+        // Notifier tous les participants de la conversation
+        io.to(conversationId).emit('messageDeleted', { messageId });
+      } catch (error) {
+        console.error('Erreur lors de la suppression du message:', error);
+        socket.emit('messageError', { error: error.message });
+      }
     });
     
     // Déconnexion

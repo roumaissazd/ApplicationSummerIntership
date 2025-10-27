@@ -144,3 +144,63 @@ exports.markMessagesAsRead = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+exports.updateMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content } = req.body;
+    
+    if (!content || content.trim() === '') {
+      return res.status(400).json({ error: 'Le contenu du message ne peut pas être vide' });
+    }
+    
+    // Trouver le message
+    const message = await Message.findById(id);
+    if (!message) {
+      return res.status(404).json({ error: 'Message non trouvé' });
+    }
+    
+    // Vérifier que l'utilisateur est l'auteur du message
+    if (message.sender.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Vous ne pouvez modifier que vos propres messages' });
+    }
+    
+    // Mettre à jour le message
+    message.content = content.trim();
+    await message.save();
+    
+    // Récupérer le message avec les infos du sender
+    const updatedMessage = await Message.findById(id)
+      .populate('sender', 'firstName lastName');
+    
+    res.json(updatedMessage);
+  } catch (error) {
+    console.error('Erreur updateMessage:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Supprimer un message
+exports.deleteMessage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Trouver le message
+    const message = await Message.findById(id);
+    if (!message) {
+      return res.status(404).json({ error: 'Message non trouvé' });
+    }
+    
+    // Vérifier que l'utilisateur est l'auteur du message
+    if (message.sender.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Vous ne pouvez supprimer que vos propres messages' });
+    }
+    
+    // Supprimer le message
+    await Message.findByIdAndDelete(id);
+    
+    res.json({ success: true, message: 'Message supprimé avec succès' });
+  } catch (error) {
+    console.error('Erreur deleteMessage:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

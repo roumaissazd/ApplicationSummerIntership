@@ -12,6 +12,16 @@ const Message = ({ message, isOwn }) => {
     ? 'flex justify-end' 
     : 'flex justify-start';
 
+  // Fonction pour améliorer l'affichage des émojis
+  const renderContent = (content) => {
+    // Augmenter la taille des émojis pour une meilleure visibilité
+    return (
+      <span className="text-lg leading-relaxed">
+        {content}
+      </span>
+    );
+  };
+
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4`}>
       <div className={`max-w-xs lg:max-w-md ${isOwn ? 'order-2' : 'order-1'}`}>
@@ -21,7 +31,9 @@ const Message = ({ message, isOwn }) => {
               {message.sender.firstName} {message.sender.lastName}
             </p>
           )}
-          <p className="text-sm">{message.content}</p>
+          <p className="text-sm whitespace-pre-wrap break-words">
+            {renderContent(message.content)}
+          </p>
           <p className={`text-xs mt-1 ${isOwn ? 'text-blue-100' : 'text-gray-500'}`}>
             {format(new Date(message.timestamp), 'HH:mm', { locale: fr })}
           </p>

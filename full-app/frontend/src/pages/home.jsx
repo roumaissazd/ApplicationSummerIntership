@@ -59,9 +59,28 @@ const Home = () => {
   const [machines, setMachines] = useState([]);
   const [animatedCounters, setAnimatedCounters] = useState({});
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [userRole, setUserRole] = useState(null); // Ajout de l'état pour le rôle utilisateur
 
   const API_URL = "http://localhost:5001/api";
   const token = localStorage.getItem('token');
+
+  // Récupérer les informations de l'utilisateur et son rôle
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        if (token) {
+          // Décoder le token pour obtenir les informations de l'utilisateur
+          const tokenData = JSON.parse(atob(token.split('.')[1]));
+          setUserRole(tokenData.role || 'user');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération du rôle utilisateur:', error);
+        setUserRole('user');
+      }
+    };
+
+    fetchUserRole();
+  }, [token]);
 
   // Récupérer les machines depuis la base de données
   useEffect(() => {
@@ -351,16 +370,18 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Add Machine Button */}
-        <div className="flex justify-end mb-6">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-accent-blue to-accent-purple text-white font-semibold py-2 px-4 rounded-lg hover:from-accent-purple hover:to-accent-pink transition-all duration-300 font-sans"
-          >
-            <Plus size={18} />
-            Ajouter une machine
-          </button>
-        </div>
+        {/* Add Machine Button - Affiché uniquement pour les admins */}
+        {userRole === 'admin' && (
+          <div className="flex justify-end mb-6">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-accent-blue to-accent-purple text-white font-semibold py-2 px-4 rounded-lg hover:from-accent-purple hover:to-accent-pink transition-all duration-300 font-sans"
+            >
+              <Plus size={18} />
+              Ajouter une machine
+            </button>
+          </div>
+        )}
 
         {/* Machine Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

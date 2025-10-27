@@ -15,8 +15,27 @@ const AssignmentCalendar = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [userRole, setUserRole] = useState(null); // Ajout de l'état pour le rôle utilisateur
 
   const token = localStorage.getItem('token');
+
+  // Récupérer le rôle de l'utilisateur depuis le token
+  useEffect(() => {
+    const fetchUserRole = () => {
+      try {
+        if (token) {
+          // Décoder le token pour obtenir les informations de l'utilisateur
+          const tokenData = JSON.parse(atob(token.split('.')[1]));
+          setUserRole(tokenData.role || 'user');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération du rôle utilisateur:', error);
+        setUserRole('user');
+      }
+    };
+
+    fetchUserRole();
+  }, [token]);
 
   const fetchData = async (endpoint, setter) => {
     try {
@@ -50,7 +69,7 @@ const AssignmentCalendar = () => {
         await Promise.all([
           fetchData("assignments", setAssignments),
           fetchData("users", setUsers),
-          fetchData("machines", setMachines)  // Cette route va maintenant filtrer par créateur
+          fetchData("machines", setMachines)
         ]);
         setLoading(false);
       }
@@ -60,6 +79,12 @@ const AssignmentCalendar = () => {
   }, [token]);
 
   const handleDayClick = (day) => {
+    // Vérifier si l'utilisateur est un admin avant de permettre l'ajout d'assignation
+    if (userRole !== 'admin') {
+      alert("Seuls les administrateurs peuvent créer des assignations.");
+      return;
+    }
+    
     setSelectedDate(day);
     setShowModal(true);
   };
@@ -126,8 +151,13 @@ const AssignmentCalendar = () => {
                assignmentDate.getDate() === day;
       });
 
+      // Ajouter une classe CSS différente selon le rôle de l'utilisateur
+      const dayClass = userRole === 'admin' 
+        ? 'border p-2 cursor-pointer hover:bg-gray-100' 
+        : 'border p-2 cursor-not-allowed opacity-75';
+
       days.push(
-        <div key={day} className="border p-2" style={{ minHeight: '120px', cursor: 'pointer' }} onClick={() => handleDayClick(date)}>
+        <div key={day} className={dayClass} style={{ minHeight: '120px' }} onClick={() => handleDayClick(date)}>
           <strong style={{ color: 'white' }}>{day}</strong>
           <div className="mt-1">
             {dayAssignments.map(a => (
@@ -136,6 +166,10 @@ const AssignmentCalendar = () => {
               </div>
             ))}
           </div>
+          {userRole !== 'admin' && (
+            <div className="mt-1 text-xs text-warning">
+            </div>
+          )}
         </div>
       );
     }
@@ -179,6 +213,22 @@ const AssignmentCalendar = () => {
         <button className="btn btn-outline-primary" onClick={() => changeMonth(1)}>Suivant</button>
       </div>
 
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h4 className="mb-0">
+          Calendrier des assignations
+          {userRole === 'admin' ? (
+            <span className="badge bg-success ms-2">Mode Admin</span>
+          ) : (
+            <span className="badge bg-secondary ms-2">Mode Lecture</span>
+          )}
+        </h4>
+        {userRole !== 'admin' && (
+          <div className="alert alert-info">
+            <small>En tant qu'utilisateur non-admin, vous pouvez uniquement consulter les assignations existantes.</small>
+          </div>
+        )}
+      </div>
+
       <div className="d-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
         {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
           <div key={day} className="text-center fw-bold p-2 border bg-light">{day}</div>
@@ -186,8 +236,8 @@ const AssignmentCalendar = () => {
         {renderCalendar()}
       </div>
 
-      {/* Modal ajout */}
-      {showModal && (
+      {/* Modal ajout - uniquement pour les admins */}
+      {showModal && userRole === 'admin' && (
         <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
           <div className="modal-dialog">
             <div className="modal-content">
@@ -250,7 +300,31 @@ const AssignmentCalendar = () => {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={resetModal}>Annuler</button>
-                <button type="button" className="btn btn-primary" onClick={handleAddAssignment}>Confirmer l'assignation</button>
+<div className="modal-footer">
+  <button type="button" className="btn btn-secondary" onClick={resetModal}>Annuler</button>
+  <button type="button" className="btn btn-primary" onClick={handleAddAssignment}>Confirmer l'assignation</button>
+</div>              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Message pour les non-admins qui essaient d'ajouter une assignation */}
+      {showModal && userRole !== 'admin' && (
+        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Accès refusé</h5>
+                <button type="button" className="btn-close" onClick={resetModal}></button>
+              </div>
+              <div className="modal-body">
+                <div className="alert alert-danger">
+                  Seuls les administrateurs peuvent créer des assignations.
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={resetModal}>Fermer</button>
               </div>
             </div>
           </div>

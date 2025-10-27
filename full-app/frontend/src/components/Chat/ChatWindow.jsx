@@ -6,7 +6,7 @@ import { fr } from 'date-fns/locale';
 import Message from './Message';
 import MessageInput from './MessageInput';
 import io from 'socket.io-client';
-import { Plus, Search, Check, CheckCheck, ArrowLeft, Phone, Video, Info, MoreVertical, MessageSquare } from 'lucide-react';
+import { ArrowLeft, MoreVertical, Phone, Video, Info } from 'lucide-react';
 
 const ChatWindow = ({ onBackToList }) => {
   const { conversationId } = useParams();
@@ -64,6 +64,18 @@ const ChatWindow = ({ onBackToList }) => {
           return prev.filter(id => id !== userId);
         }
       });
+    });
+
+    // Écouter les mises à jour de messages
+    newSocket.on('messageUpdated', (updatedMessage) => {
+      setMessages(prev => prev.map(msg => 
+        msg._id === updatedMessage._id ? updatedMessage : msg
+      ));
+    });
+
+    // Écouter les suppressions de messages
+    newSocket.on('messageDeleted', ({ messageId }) => {
+      setMessages(prev => prev.filter(msg => msg._id !== messageId));
     });
 
     setSocket(newSocket);
@@ -136,6 +148,97 @@ const ChatWindow = ({ onBackToList }) => {
     }
   };
 
+  const handleUpdateMessage = async (messageId, newContent) => {
+    try {
+      const response = await fetch(`${API_URL}/api/chat/messages/${messageId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ content: newContent })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const updatedMessage = await response.json();
+      
+      // Mettre à jour le message dans l'état local
+      setMessages(prev => prev.map(msg => 
+        msg._id === messageId ? { ...msg, content: newContent, originalContent: msg.content } : msg
+      ));
+      
+      // Notifier Socket.IO si nécessaire
+      if (socket && connectionStatus === 'connected') {
+        socket.emit('updateMessage', {
+          messageId,
+          conversationId,
+          content: newContent,
+          userId: JSON.parse(atob(token.split('.')[1])).id
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour du message:', error);
+      throw error; // Propager l'erreur pour que le composant Message puisse la gérer
+    }
+  };
+
+  const handleDeleteMessage = async (messageId) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce message ?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/chat/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      // Supprimer le message de l'état local
+      setMessages(prev => prev.filter(msg => msg._id !== messageId));
+      
+      // Notifier Socket.IO si nécessaire
+      if (socket && connectionStatus === 'connected') {
+        socket.emit('deleteMessage', {
+          messageId,
+          conversationId,
+          userId: JSON.parse(atob(token.split('.')[1])).id
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors de la suppression du message:', error);
+    }
+  };
+
+  const markMessagesAsRead = async () => {
+    try {
+      await fetch(`${API_URL}/api/chat/messages/read`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ conversationId })
+      });
+    } catch (err) {
+      console.error('Erreur lors du marquage des messages comme lus:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (conversationId) {
+      markMessagesAsRead();
+    }
+  }, [conversationId]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -181,7 +284,9 @@ const ChatWindow = ({ onBackToList }) => {
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <MessageSquare className="h-8 w-8 text-gray-400" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
           </div>
           <p className="text-gray-500">Conversation non trouvée</p>
         </div>
@@ -255,7 +360,9 @@ const ChatWindow = ({ onBackToList }) => {
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MessageSquare className="h-8 w-8 text-gray-400" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
               </div>
               <p>Aucun message. Soyez le premier à écrire !</p>
             </div>
@@ -267,6 +374,8 @@ const ChatWindow = ({ onBackToList }) => {
                 key={message._id}
                 message={message}
                 isOwn={message.sender._id === JSON.parse(atob(token.split('.')[1])).id}
+                onUpdateMessage={handleUpdateMessage}
+                onDeleteMessage={handleDeleteMessage}
               />
             ))}
             <div ref={messagesEndRef} />

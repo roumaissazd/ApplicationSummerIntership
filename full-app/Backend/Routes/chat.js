@@ -9,5 +9,6 @@ router.get('/conversations/:id', authenticate, chatController.getConversationByI
 router.post('/conversations', authenticate, chatController.createConversation);
 router.post('/messages', authenticate, chatController.sendMessage);
 router.post('/messages/read', authenticate, chatController.markMessagesAsRead);
-
+router.put('/messages/:id', authenticate, chatController.updateMessage);
+router.delete('/messages/:id', authenticate, chatController.deleteMessage);
 module.exports = router;
