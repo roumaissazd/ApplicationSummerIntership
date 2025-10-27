@@ -18,6 +18,7 @@ const generateToken = (user) => {
   return jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });
 };
 
+
 // === Créer le premier admin ===
 exports.createInitialAdmin = async (req, res) => {
   try {

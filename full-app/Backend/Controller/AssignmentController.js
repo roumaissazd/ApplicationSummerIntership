@@ -38,15 +38,56 @@ exports.createAssignment = async (req, res) => {
 };
 
 // Lister toutes les assignations
+// Lister toutes les assignations (seulement pour admin)
 exports.getAllAssignments = async (req, res) => {
   try {
+    // Vérifier le rôle de l'utilisateur
+    if (!req.user || req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Accès refusé. Admin requis.' });
+    }
+
     const assignments = await Assignment.find()
       .populate('technician', 'firstName lastName email role')
       .populate('machine', 'name serialNumber');
-    console.log("Assignments sent:", assignments); // Débogage
+    
     res.json(assignments);
   } catch (err) {
     console.error("Error in getAllAssignments:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+// Lister les assignations d’un technicien (user ou admin)
+exports.getAssignmentsByTechnician = async (req, res) => {
+  try {
+    const { technicianId } = req.params;
+
+    // Sécurité : un user ne peut voir que ses propres assignations
+    if (req.user.role !== 'admin' && req.user.id !== technicianId) {
+      return res.status(403).json({ error: 'Vous ne pouvez voir que vos propres assignations.' });
+    }
+
+    const assignments = await Assignment.find({ technician: technicianId })
+      .populate('technician', 'firstName lastName email role')
+      .populate('machine', 'name serialNumber');
+    
+    res.json(assignments);
+  } catch (err) {
+    console.error("Error in getAssignmentsByTechnician:", err);
+    res.status(500).json({ error: err.message });
+  }
+};
+// Récupérer les assignations du technicien connecté
+exports.getMyAssignments = async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({ error: 'Non authentifié' });
+
+    const assignments = await Assignment.find({ technician: req.user.id })
+      .populate('technician', 'firstName lastName email role')
+      .populate('machine', 'name serialNumber');
+
+    res.json(assignments);
+  } catch (err) {
+    console.error("getMyAssignments error:", err);
     res.status(500).json({ error: err.message });
   }
 };

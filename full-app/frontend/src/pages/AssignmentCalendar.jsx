@@ -20,39 +20,25 @@ const AssignmentCalendar = () => {
 
   const token = localStorage.getItem('token');
 
-  // Récupérer le rôle et l'ID de l'utilisateur depuis le token
+  // Récupérer rôle et ID
   useEffect(() => {
-    const fetchUserRoleAndId = () => {
-      try {
-        if (!token) {
-          throw new Error("No token found in localStorage");
-        }
-        const tokenData = JSON.parse(atob(token.split('.')[1]));
-        console.log("Token Data:", tokenData); // Débogage : structure du token
-        setUserRole(tokenData.role || 'user');
-        setUserId(tokenData.id || tokenData._id || null);
-        if (!tokenData.id && !tokenData._id) {
-          console.error("No user ID found in token");
-          setError("ID utilisateur manquant dans le token.");
-        }
-      } catch (error) {
-        console.error('Erreur lors de la récupération des informations utilisateur:', error);
-        setUserRole('user');
-        setUserId(null);
-        setError("Erreur lors de la récupération des informations utilisateur.");
-      }
-    };
-
-    fetchUserRoleAndId();
+    if (!token) {
+      setError("Veuillez vous connecter.");
+      setLoading(false);
+      return;
+    }
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      setUserRole(payload.role);
+      setUserId(payload.id);
+    } catch (e) {
+      setError("Token invalide.");
+    }
   }, [token]);
 
-  // Fonction pour récupérer les données depuis l'API
+  // Fetch données
   const fetchData = async (endpoint, setter) => {
     try {
-      if (!token) {
-        throw new Error("No token provided");
-      }
-      console.log(`Fetching data from ${API_URL}/${endpoint}`); // Débogage
       const res = await fetch(`${API_URL}/${endpoint}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -60,55 +46,38 @@ const AssignmentCalendar = () => {
         }
       });
       if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+        const err = await res.json();
+        throw new Error(err.error || `HTTP ${res.status}`);
       }
       const data = await res.json();
-      console.log(`Data from ${endpoint}:`, data); // Débogage : données récupérées
-      if (endpoint === "users" && data.users) {
-        setter(data.users);
-      } else if (endpoint === "machines" && data.machines) {
-        setter(data.machines);
-      } else {
-        setter(data);
-      }
-    } catch (error) {
-      console.error(`Error fetching ${endpoint}:`, error);
-      setError(`Erreur lors de la récupération des ${endpoint}: ${error.message}`);
+      if (endpoint.includes("users") && data.users) setter(data.users);
+      else if (endpoint.includes("machines") && data.machines) setter(data.machines);
+      else setter(data);
+    } catch (err) {
+      console.error(`Erreur ${endpoint}:`, err);
+      setError(err.message);
     }
   };
 
-  // Récupérer toutes les données au chargement
+  // Charger données
   useEffect(() => {
-    const fetchAllData = async () => {
-      if (token) {
-        setLoading(true);
-        await Promise.all([
-          fetchData("assignments", setAssignments),
-          fetchData("users", setUsers),
-          fetchData("machines", setMachines)
-        ]);
-        setLoading(false);
-      } else {
-        setLoading(false);
-        setError("Veuillez vous connecter pour accéder aux données.");
-      }
-    };
+    if (!token || !userRole) return;
+    setLoading(true);
+    const endpoint = userRole === 'admin' ? 'assignments' : 'assignments/my';
+    Promise.all([
+      fetchData(endpoint, setAssignments),
+      fetchData("users", setUsers),
+      fetchData("machines", setMachines)
+    ]).finally(() => setLoading(false));
+  }, [token, userRole]);
 
-    fetchAllData();
-  }, [token]);
-
-  // Gestion du clic sur un jour
+  // Clic jour
   const handleDayClick = (day) => {
-    if (userRole !== 'admin') {
-      alert("Seuls les administrateurs peuvent créer des assignations.");
-      return;
-    }
-    
+    if (userRole !== 'admin') return;
     setSelectedDate(day);
     setShowModal(true);
   };
 
-  // Réinitialiser le modal
   const resetModal = () => {
     setShowModal(false);
     setSelectedUser("");
@@ -117,16 +86,15 @@ const AssignmentCalendar = () => {
     setSelectedDate(null);
   };
 
-  // Ajouter une assignation
+  // Créer assignation
   const handleAddAssignment = async () => {
     if (!selectedUser || !selectedMachine || !selectedDate || !description) {
-      alert("Veuillez remplir tous les champs.");
+      alert("Tous les champs sont requis.");
       return;
     }
 
     try {
-      console.log("Creating assignment with:", { technicianId: selectedUser, machineId: selectedMachine, day: selectedDate.toISOString().split('T')[0], description }); // Débogage
-      const response = await fetch(`${API_URL}/assignments`, {
+      const res = await fetch(`${API_URL}/assignments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -140,65 +108,55 @@ const AssignmentCalendar = () => {
         }),
       });
 
-      const data = await response.json();
-      if (response.ok) {
-        console.log("New Assignment Added:", data); // Débogage : nouvelle assignation
-        // Rafraîchir les assignations depuis l'API
-        await fetchData("assignments", setAssignments);
+      if (res.ok) {
+        const endpoint = userRole === 'admin' ? 'assignments' : 'assignments/my';
+        await fetchData(endpoint, setAssignments);
         resetModal();
       } else {
-        console.error("Error adding assignment:", data);
-        alert(data.error || "Erreur lors de l'ajout");
+        const err = await res.json();
+        alert(err.error || "Erreur");
       }
-    } catch (error) {
-      console.error("Error adding assignment:", error);
-      alert("Erreur lors de l'ajout de l'assignation");
+    } catch (err) {
+      alert("Erreur réseau");
     }
   };
 
-  // Rendu du calendrier
+  // Rendu calendrier
   const renderCalendar = () => {
     const month = currentDate.getMonth();
     const year = currentDate.getFullYear();
-    const firstDayOfMonth = new Date(year, month, 1).getDay();
+    const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    console.log("Assignments in renderCalendar:", assignments); // Débogage : toutes les assignations
-    console.log("userId:", userId, "userRole:", userRole); // Débogage : ID et rôle utilisateur
-
     const days = [];
-    for (let i = 0; i < firstDayOfMonth; i++) {
+    for (let i = 0; i < firstDay; i++) {
       days.push(<div key={`empty-${i}`} className="border p-2" style={{ minHeight: '120px' }}></div>);
     }
 
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       const dayAssignments = assignments.filter(a => {
-        const assignmentDate = new Date(a.weekStart);
-        const isSameDate = assignmentDate.toDateString() === date.toDateString();
-        console.log("Assignment:", a, "isSameDate:", isSameDate, "technicianId:", a.technician?._id); // Débogage
-        return isSameDate && (userRole === 'admin' || (a.technician?._id && userId && a.technician._id.toString() === userId.toString()));
+        const assignDate = new Date(a.weekStart);
+        return assignDate.toDateString() === date.toDateString();
       });
 
-      const dayClass = userRole === 'admin' 
-        ? 'border p-2 cursor-pointer hover:bg-gray-100' 
-        : 'border p-2 cursor-not-allowed opacity-75';
-
       days.push(
-        <div key={day} className={dayClass} style={{ minHeight: '120px', border: '2px solid red' }} onClick={() => handleDayClick(date)}>
-          <strong style={{ color: 'black' }}>{day}</strong>
-          <div className="mt-1">
+        <div
+          key={day}
+          className={userRole === 'admin' ? 'border p-2 cursor-pointer hover:bg-gray-100' : 'border p-2'}
+          style={{ minHeight: '120px' }}
+          onClick={() => userRole === 'admin' && handleDayClick(date)}
+        >
+<strong style={{ color: 'white' }}>{day}</strong> {/* Numéro en blanc */}          <div className="mt-1">
             {dayAssignments.length > 0 ? (
               dayAssignments.map(a => (
                 <div key={a._id} className="bg-primary text-white rounded p-1 mb-1 small">
-                  {a.machine?.name || 'Machine inconnue'} - {a.notes || 'Aucune note'} - 
-                  {a.technician ? `${a.technician.firstName} ${a.technician.lastName}` : 'Technicien inconnu'}
+                  {a.machine?.name} - {a.notes}
+                  {userRole === 'admin' && ` - ${a.technician?.firstName} ${a.technician?.lastName}`}
                 </div>
               ))
             ) : (
-              <div className="mt-1 text-xs text-warning">
-                {userRole === 'admin' ? 'Aucune assignation ce jour' : 'Aucune assignation pour vous ce jour'}
-              </div>
+              <div className="text-muted small">Aucune assignation</div>
             )}
           </div>
         </div>
@@ -207,39 +165,17 @@ const AssignmentCalendar = () => {
     return days;
   };
 
-  // Changer de mois
   const changeMonth = (offset) => {
-    setCurrentDate(prevDate => {
-      const newDate = new Date(prevDate);
-      newDate.setMonth(newDate.getMonth() + offset);
-      return newDate;
+    setCurrentDate(prev => {
+      const next = new Date(prev);
+      next.setMonth(next.getMonth() + offset);
+      return next;
     });
   };
 
-  // État de chargement
-  if (loading) {
-    return (
-      <div className="container mt-4 text-center">
-        <div className="spinner-border" role="status">
-          <span className="visually-hidden">Chargement...</span>
-        </div>
-        <p className="mt-2">Chargement des données...</p>
-      </div>
-    );
-  }
+  if (loading) return <div className="text-center mt-5"><div className="spinner-border"></div></div>;
+  if (error) return <div className="alert alert-danger m-4">{error}</div>;
 
-  // Erreur
-  if (error) {
-    return (
-      <div className="container mt-4">
-        <div className="alert alert-danger" role="alert">
-          {error}
-        </div>
-      </div>
-    );
-  }
-
-  // Rendu principal
   return (
     <div className="container mt-4">
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -249,115 +185,57 @@ const AssignmentCalendar = () => {
       </div>
 
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h4 className="mb-0">
-          Calendrier des assignations
-          {userRole === 'admin' ? (
-            <span className="badge bg-success ms-2">Mode Admin</span>
-          ) : (
-            <span className="badge bg-secondary ms-2">Mode Lecture</span>
-          )}
+        <h4>
+          Calendrier
+          <span className={`badge ms-2 ${userRole === 'admin' ? 'bg-success' : 'bg-secondary'}`}>
+            {userRole === 'admin' ? 'Admin' : 'Technicien'}
+          </span>
         </h4>
-        {userRole !== 'admin' && (
-          <div className="alert alert-info">
-            <small>En tant qu'utilisateur non-admin, vous pouvez uniquement consulter vos assignations.</small>
-          </div>
-        )}
       </div>
 
       <div className="d-grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
-        {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(day => (
-          <div key={day} className="text-center fw-bold p-2 border bg-light">{day}</div>
+        {['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'].map(d => (
+          <div key={d} className="text-center fw-bold p-2 border bg-light">{d}</div>
         ))}
         {renderCalendar()}
       </div>
 
-      {/* Modal pour les admins */}
+      {/* Modal Admin */}
       {showModal && userRole === 'admin' && (
         <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
           <div className="modal-dialog">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">
-                  Nouvelle assignation pour le {selectedDate?.toLocaleDateString('fr-FR')}
-                </h5>
-                <button type="button" className="btn-close" onClick={resetModal}></button>
+                <h5>Nouvelle assignation - {selectedDate?.toLocaleDateString('fr-FR')}</h5>
+                <button className="btn-close" onClick={resetModal}></button>
               </div>
               <div className="modal-body">
                 <div className="mb-3">
                   <label>Machine</label>
-                  <select
-                    className="form-select"
-                    value={selectedMachine}
-                    onChange={(e) => setSelectedMachine(e.target.value)}
-                  >
-                    <option value="">Sélectionner une machine</option>
-                    {machines.length === 0 ? (
-                      <option disabled>Aucune machine disponible</option>
-                    ) : (
-                      machines.map((m) => (
-                        <option key={m._id} value={m._id}>
-                          {m.name} ({m.serialNumber})
-                        </option>
-                      ))
-                    )}
-                  </select>
-                  {machines.length === 0 && (
-                    <div className="form-text text-muted">
-                      Vous n'avez créé aucune machine. 
-                      <a href="/machines/create" className="ms-1">Créer une machine</a>
-                    </div>
-                  )}
-                </div>
-                <div className="mb-3">
-                  <label>Description de la panne</label>
-                  <textarea
-                    className="form-control"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Décrivez la panne ou la tâche de maintenance"
-                  />
-                </div>
-                <div className="mb-3">
-                  <label>Utilisateur responsable</label>
-                  <select
-                    className="form-select"
-                    value={selectedUser}
-                    onChange={(e) => setSelectedUser(e.target.value)}
-                  >
-                    <option value="">Sélectionner un utilisateur</option>
-                    {users.map((t) => (
-                      <option key={t._id} value={t._id}>
-                        {t.firstName} {t.lastName}
-                      </option>
+                  <select className="form-select" value={selectedMachine} onChange={e => setSelectedMachine(e.target.value)}>
+                    <option value="">Choisir...</option>
+                    {machines.map(m => (
+                      <option key={m._id} value={m._id}>{m.name} ({m.serialNumber})</option>
                     ))}
                   </select>
                 </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={resetModal}>Annuler</button>
-                <button type="button" className="btn btn-primary" onClick={handleAddAssignment}>Confirmer l'assignation</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal pour les non-admins */}
-      {showModal && userRole !== 'admin' && (
-        <div className="modal show d-block" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Accès refusé</h5>
-                <button type="button" className="btn-close" onClick={resetModal}></button>
-              </div>
-              <div className="modal-body">
-                <div className="alert alert-danger">
-                  Seuls les administrateurs peuvent créer des assignations.
+                <div className="mb-3">
+                  <label>Technicien</label>
+                  <select className="form-select" value={selectedUser} onChange={e => setSelectedUser(e.target.value)}>
+                    <option value="">Choisir...</option>
+                    {users.filter(u => u.role !== 'admin').map(u => (
+                      <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mb-3">
+                  <label>Description</label>
+                  <textarea className="form-control" value={description} onChange={e => setDescription(e.target.value)} />
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={resetModal}>Fermer</button>
+                <button className="btn btn-secondary" onClick={resetModal}>Annuler</button>
+                <button className="btn btn-primary" onClick={handleAddAssignment}>Créer</button>
               </div>
             </div>
           </div>
