@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import mqtt from "mqtt";
 import CombinedUsageCard from "../components/GpuCombinedCard";
 import RamCard from "../components/RamCard";
@@ -20,8 +21,10 @@ function Dashboard() {
     charging: false,
   });
 
+  const [highestRisk, setHighestRisk] = useState({ risk: 0, component: 'System' });
   const [labels, setLabels] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const token = localStorage.getItem('token'); // Récupérer le token
 
   useEffect(() => {
     // --- Configuration MQTT ---
@@ -57,8 +60,33 @@ function Dashboard() {
     });
 
     // Nettoyage à la fermeture du composant
-    return () => client.end();
+    return () => {
+      if (client) {
+        client.end();
+      }
+    };
   }, []);
+
+  // Effet pour récupérer les prédictions périodiquement
+  useEffect(() => {
+    const fetchPredictions = async () => {
+      try {
+        const res = await fetch('http://localhost:5001/api/predictions', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (res.ok && data.predictions && data.predictions.length > 0) {
+          const maxRisk = data.predictions.reduce((max, p) => p.risk_percent > max.risk_percent ? p : max, { risk_percent: 0 });
+          setHighestRisk({ risk: maxRisk.risk_percent, component: maxRisk.component });
+        }
+      } catch (err) {
+        console.error("Erreur de prédiction:", err);
+      }
+    };
+    fetchPredictions();
+    const interval = setInterval(fetchPredictions, 60000); // Toutes les 60 secondes
+    return () => clearInterval(interval);
+  }, [token]);
 
   if (isLoading) {
     return (
@@ -99,15 +127,19 @@ function Dashboard() {
             <div className="text-accent-blue">⏱️</div>
           </div>
         </div>
-        <div className="bg-glass backdrop-blur-md rounded-2xl border border-glass-border shadow-glass p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-text-secondary font-sans text-sm">Alerts</p>
-              <p className="text-accent-yellow font-semibold font-sans">2 Active</p>
+        <Link to="/risks">
+          <div className="bg-glass backdrop-blur-md rounded-2xl border border-glass-border shadow-glass p-6 h-full hover:border-accent-blue transition-colors">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-text-secondary font-sans text-sm">Santé du Système (IA)</p>
+                <p className={`text-xl font-bold font-sans ${highestRisk.risk > 40 ? 'text-accent-yellow' : 'text-accent-green'}`}>
+                  {highestRisk.risk > 0 ? `Risque: ${Math.round(highestRisk.risk)}%` : 'Normal'}
+                </p>
+              </div>
+              <div className="text-3xl">🔮</div>
             </div>
-            <div className="text-accent-yellow">⚠️</div>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Main Grid Layout */}

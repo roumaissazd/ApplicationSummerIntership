@@ -1,57 +1,84 @@
-require('dotenv').config();
+// app.js
+require('dotenv').config({ debug: true });
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const socketIo = require('socket.io');
+const http = require('http');
+const { Server } = require('socket.io');
 const dashboardRoutes = require('./Routes/Dashboard');
 const userRoutes = require('./Routes/User');
 const machineRoutes = require('./Routes/machine');
 const assignmentRoutes = require('./Routes/assignment');
 const chatRoutes = require('./Routes/chat');
+const predictionRoutes = require('./Routes/prediction'); // Ajout de la route de prédiction
 const chatSocket = require('./socket/chatSocket');
+const NotificationService = require('./services/notificationService');
+const PredictionService = require('./services/predictionService'); // Importer le service de prédiction
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST'],
+  },
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: 'http://localhost:3000' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, 'Uploads')));
 
 // MongoDB Connection
 mongoose
-  .connect(process.env.MONGO_URI || 'mongodb://localhost:27017/dashboardDB', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(process.env.MONGO_URI || 'mongodb://localhost:27017/dashboardDB')
   .then(() => console.log('Connected to MongoDB'))
   .catch((err) => {
     console.error('MongoDB connection error:', err);
     process.exit(1);
   });
 
-// Socket.IO setup
-const http = require('http');
-const { Server } = require('socket.io');
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST"]
-  }
-});
+// Initialize NotificationService with socket.io instance
+try {
+  console.log('Initializing NotificationService...');
+  NotificationService.init(io); // Pass io instead of server
+} catch (err) {
+  console.error('Error initializing NotificationService:', err);
+  process.exit(1);
+}
 
-io.on('connection', (socket) => {
-  console.log('Utilisateur connecté:', socket.id);
-  
-  // Rejoindre une salle de conversation
-});
+// Initialize Prediction Service
+try {
+  console.log('Initializing PredictionService...');
+  PredictionService.init();
+} catch (err) {
+  console.error('Error initializing PredictionService:', err);
+}
 
-// Initialiser les gestionnaires d'événements Socket.IO pour le chat
-chatSocket(io);
+// Initialize chatSocket with socket.io instance
+try {
+  console.log('Initializing chatSocket...');
+  chatSocket(io);
+} catch (err) {
+  console.error('Error initializing chatSocket:', err);
+  process.exit(1);
+}
 
-  // Ajoutez cette route de test
+// Test route
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Le serveur fonctionne correctement!' });
 });
@@ -62,8 +89,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/machines', machineRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/chat', chatRoutes);
-
-
+app.use('/api/predictions', predictionRoutes); // Utilisation de la route de prédiction
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
@@ -72,7 +98,11 @@ app.use((err, req, res, next) => {
 });
 
 // Start Server
-const PORT = process.env.PORT || 5001;
-server.listen(PORT, () => {
+const PORT = process.env.PORT || 5002;
+server.listen(PORT, (err) => {
+  if (err) {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  }
   console.log(`Server running on port ${PORT}`);
 });

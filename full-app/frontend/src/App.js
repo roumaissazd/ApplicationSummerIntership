@@ -12,6 +12,7 @@ import Dashboard from './pages/dashboard';
 import ResetPassword from './pages/ResetPassword';
 import AssignmentCalendar from './pages/AssignmentCalendar';
 import ChatPage from './pages/ChatPage';
+import RiskPage from './pages/RiskPage';
 
 function App() {
   const [theme, setTheme] = useState('dark');
@@ -67,7 +68,7 @@ function App() {
             <Route path="/dashboard/:machineId" element={<Dashboard />} />
                <Route path="/chat" element={<ChatPage />} />
         <Route path="/chat/:conversationId" element={<ChatPage />} />
-
+<Route path="/risks" element={<RiskPage />} />
           </Routes>
         </div>
       </div>
