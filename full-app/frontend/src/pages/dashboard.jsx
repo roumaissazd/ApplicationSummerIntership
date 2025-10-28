@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import mqtt from "mqtt";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import CombinedUsageCard from "../components/GpuCombinedCard";
 import RamCard from "../components/RamCard";
 import DiskCard from "../components/DiskCard";
@@ -24,6 +26,7 @@ function Dashboard() {
   const [highestRisk, setHighestRisk] = useState({ risk: 0, component: 'System' });
   const [labels, setLabels] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const token = localStorage.getItem('token'); // Récupérer le token
 
   useEffect(() => {
@@ -88,6 +91,68 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, [token]);
 
+  // Fonction pour générer le PDF
+  const generatePDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      const dashboardElement = document.querySelector('.dashboard-content');
+      if (!dashboardElement) {
+        console.error('Dashboard element not found');
+        return;
+      }
+
+      const canvas = await html2canvas(dashboardElement, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#0f0f23',
+        width: dashboardElement.scrollWidth,
+        height: dashboardElement.scrollHeight,
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 295; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      let heightLeft = imgHeight;
+
+      let position = 0;
+
+      // Première page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      // Pages supplémentaires si nécessaire
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      // Ajouter des métadonnées
+      pdf.setProperties({
+        title: 'System Dashboard Report',
+        subject: 'Capgemini Monitoring System',
+        author: 'Capgemini Dashboard',
+        keywords: 'system, monitoring, dashboard, metrics',
+        creator: 'Capgemini Monitoring App'
+      });
+
+      // Télécharger le PDF
+      const fileName = `dashboard-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Erreur lors de la génération du PDF. Veuillez réessayer.');
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-dark-primary via-dark-secondary to-dark-tertiary flex items-center justify-center">
@@ -102,10 +167,32 @@ function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-primary via-dark-secondary to-dark-tertiary p-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-text-primary font-sans mb-2">System Dashboard</h1>
-        <p className="text-text-secondary font-sans">Real-time monitoring of your machine performance</p>
+      <div className="mb-8 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-text-primary font-sans mb-2">System Dashboard</h1>
+          <p className="text-text-secondary font-sans">Real-time monitoring of your machine performance</p>
+        </div>
+        <button
+          onClick={generatePDF}
+          disabled={isGeneratingPDF}
+          className="bg-gradient-to-r from-accent-blue to-accent-purple text-white font-semibold py-2 px-4 rounded-lg hover:from-accent-purple hover:to-accent-pink transition-all duration-300 font-sans disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 shadow-glow"
+        >
+          {isGeneratingPDF ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>Génération...</span>
+            </>
+          ) : (
+            <>
+              <span>📄</span>
+              <span>Télécharger PDF</span>
+            </>
+          )}
+        </button>
       </div>
+
+      {/* Dashboard Content - Container pour le PDF */}
+      <div className="dashboard-content">
 
       {/* System Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -187,6 +274,7 @@ function Dashboard() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

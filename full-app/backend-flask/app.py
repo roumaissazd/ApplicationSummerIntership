@@ -168,7 +168,7 @@ def predict_failure():
             {
                 'component': 'Memory',
                 'risk_percent': round(mem_risk, 2),
-                'message': get_message('la mémoire', mem_risk, avg_mem)
+                'message': get_message('RAM', mem_risk, avg_mem)
             },
             {
                 'component': 'Disk',
